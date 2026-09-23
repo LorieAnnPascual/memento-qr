@@ -1,0 +1,2 @@
+CREATE INDEX "idx_qr_codes_user_created" ON "qr_codes" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE INDEX "idx_scan_events_qr_scanned" ON "scan_events" USING btree ("qr_code_id","scanned_at");
