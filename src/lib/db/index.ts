@@ -16,8 +16,13 @@ if (!connectionString) {
 // idle connections are released quickly.
 const globalForDb = globalThis as unknown as { pgClient?: ReturnType<typeof postgres> };
 
+// On Vercel every request can run on its own server instance, so each one gets a
+// single connection; the pooler (use the port 6543 address there) shares them.
+const maxConnections = process.env.VERCEL ? 1 : 5;
+
 const client =
-  globalForDb.pgClient ?? postgres(connectionString, { prepare: false, max: 5, idle_timeout: 20 });
+  globalForDb.pgClient ??
+  postgres(connectionString, { prepare: false, max: maxConnections, idle_timeout: 20 });
 
 if (process.env.NODE_ENV !== 'production') globalForDb.pgClient = client;
 
