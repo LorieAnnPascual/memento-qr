@@ -1,3 +1,5 @@
+import { cache } from 'react';
+
 import { eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
@@ -10,7 +12,8 @@ export interface CurrentUser {
   profile: UserProfile | null;
 }
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+/** Cached per request, so a layout and its page share one auth + profile lookup. */
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,4 +32,4 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     email: user.email ?? '',
     profile: profile ?? null,
   };
-}
+});
