@@ -120,12 +120,17 @@ function drawSocialBadgeRow(
   context.textBaseline = 'alphabetic';
 }
 
-async function exportCardAsRaster(
-  qr: QRCodeStyling,
-  extension: Exclude<FileExtension, 'svg'>,
-  fileName: string,
-  card: QRCardOptions,
-): Promise<void> {
+/** A drawn card plus where its QR code sits in it, both in canvas pixels. */
+export interface RenderedCard {
+  canvas: HTMLCanvasElement;
+  qrRect: { x: number; y: number; width: number; height: number };
+}
+
+/**
+ * Draws a horizontal or vertical card. `scale` multiplies the pixel size (the
+ * layout itself is unchanged), so print exports can be sharper than the screen.
+ */
+export async function renderCardRaster(qr: QRCodeStyling, card: QRCardOptions, scale: number = 1): Promise<RenderedCard> {
   await loadCardFonts(card);
   const [image, backgroundImage, logoImage] = await Promise.all([
     getQrPngImage(qr),
@@ -145,18 +150,20 @@ async function exportCardAsRaster(
     : PADDING * 3 + QR_RENDER_SIZE + 100 + extraContentHeight;
 
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Canvas is not supported in this browser');
+  context.scale(scale, scale);
 
   context.fillStyle = card.backgroundColor || '#FFFFFF';
   context.fillRect(0, 0, width, height);
   if (backgroundImage) {
     const blur = card.backgroundImageBlur ?? 0;
     // Oversize the drawn box by the blur radius so the gaussian blur doesn't
-    // leave an unblurred sliver visible at the canvas edges.
-    context.filter = blur ? `blur(${blur}px)` : 'none';
+    // leave an unblurred sliver visible at the canvas edges. (Canvas filters
+    // ignore the transform, so the radius is scaled by hand.)
+    context.filter = blur ? `blur(${blur * scale}px)` : 'none';
     drawCoverImage(context, backgroundImage, -blur, -blur, width + blur * 2, height + blur * 2);
     context.filter = 'none';
   }
@@ -273,6 +280,20 @@ async function exportCardAsRaster(
     }
   }
 
+  const qrRect = isHorizontal
+    ? { x: PADDING * scale, y: PADDING * scale, width: QR_RENDER_SIZE * scale, height: QR_RENDER_SIZE * scale }
+    : { x: ((width - QR_RENDER_SIZE) / 2) * scale, y: PADDING * scale, width: QR_RENDER_SIZE * scale, height: QR_RENDER_SIZE * scale };
+
+  return { canvas, qrRect };
+}
+
+async function exportCardAsRaster(
+  qr: QRCodeStyling,
+  extension: Exclude<FileExtension, 'svg'>,
+  fileName: string,
+  card: QRCardOptions,
+): Promise<void> {
+  const { canvas } = await renderCardRaster(qr, card);
   const mimeType = extension === 'jpeg' ? 'image/jpeg' : `image/${extension}`;
 
   const blob = await new Promise<Blob | null>((resolve) => {

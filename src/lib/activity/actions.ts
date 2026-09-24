@@ -7,6 +7,8 @@ export const ACTIVITY_ACTIONS = [
   'qr.batch_created',
   'qr.moved',
   'qr.handoff',
+  'qr.destination_restored',
+  'qr.health_changed',
   'folder.created',
   'folder.renamed',
   'folder.deleted',

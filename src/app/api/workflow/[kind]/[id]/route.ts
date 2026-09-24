@@ -56,6 +56,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
     ...(data.assignedTo !== undefined && { assignedTo: data.assignedTo }),
     ...(data.nextAction !== undefined && { nextAction: data.nextAction || null }),
     ...(data.notes !== undefined && { notes: data.notes || null }),
+    ...(data.purpose !== undefined && { purpose: data.purpose || null }),
     ...(data.checklist !== undefined && { checklist: data.checklist }),
     updatedAt: new Date(),
     updatedBy: user.profile.id,
@@ -90,6 +91,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
     assignedTo: updated.assignedTo,
     nextAction: updated.nextAction,
     notes: updated.notes,
+    purpose: updated.purpose,
     checklist: updated.checklist,
   });
 }

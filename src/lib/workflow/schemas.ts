@@ -13,6 +13,7 @@ export const WorkflowSchema = z.object({
   assignedTo: z.string().uuid().nullable().optional(),
   nextAction: z.string().trim().max(500).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
+  purpose: z.string().trim().max(500).nullable().optional(),
   checklist: z.array(ChecklistItemSchema).max(MAX_CHECKLIST_ITEMS).nullable().optional(),
 });
 

@@ -34,6 +34,7 @@ export interface WorkflowFields {
   nextAction: string | null;
   notes: string | null;
   checklist: unknown;
+  purpose?: string | null;
 }
 
 interface WorkflowDialogProps {
@@ -55,6 +56,7 @@ export function WorkflowDialog({ kind, itemId, itemName, value, members, open, o
   const [assignedTo, setAssignedTo] = useState(value.assignedTo ?? UNASSIGNED);
   const [nextAction, setNextAction] = useState(value.nextAction ?? '');
   const [notes, setNotes] = useState(value.notes ?? '');
+  const [purpose, setPurpose] = useState(value.purpose ?? '');
   const [checklist, setChecklist] = useState<ChecklistItem[]>(() => normalizeChecklist(value.checklist));
   const [newStep, setNewStep] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -86,6 +88,7 @@ export function WorkflowDialog({ kind, itemId, itemName, value, members, open, o
           assignedTo: assignedTo === UNASSIGNED ? null : assignedTo,
           nextAction: nextAction.trim() || null,
           notes: notes.trim() || null,
+          purpose: purpose.trim() || null,
           checklist,
         }),
       });
@@ -114,6 +117,17 @@ export function WorkflowDialog({ kind, itemId, itemName, value, members, open, o
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="wf-purpose">Purpose</Label>
+              <Input
+                id="wf-purpose"
+                maxLength={500}
+                placeholder="What is this for? e.g. Table cards for the June event"
+                value={purpose}
+                onChange={(event) => setPurpose(event.target.value)}
+              />
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="wf-assignee">Assigned to</Label>
               <Select value={assignedTo} onValueChange={setAssignedTo}>

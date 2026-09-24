@@ -113,10 +113,11 @@ describe('POST /api/qr', () => {
 
   it('encodes a short redirect link — not the destination — for a dynamic QR', async () => {
     getCurrentUserMock.mockResolvedValue(AUTHED_USER);
-    let capturedValues: Record<string, unknown> = {};
+    let captured: Record<string, unknown> | null = null;
     dbMock.insert.mockReturnValue({
       values: (v: Record<string, unknown>) => {
-        capturedValues = v;
+        // The first insert is the QR code; a later one records its destination history.
+        captured ??= v;
         return chainable([{ id: 'qr-1', ...v }]);
       },
     });
@@ -135,6 +136,7 @@ describe('POST /api/qr', () => {
 
     const response = await POST(request);
     expect(response.status).toBe(201);
+    const capturedValues = captured as unknown as Record<string, unknown>;
     expect(capturedValues.isDynamic).toBe(true);
     expect(capturedValues.shortCode).toMatch(/^[23456789abcdefghjkmnpqrstuvwxyz]{6}$/);
     expect(capturedValues.targetUrl).toBe('https://example.com');

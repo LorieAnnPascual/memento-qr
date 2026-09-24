@@ -66,7 +66,7 @@ export default async function ActivityPage({ searchParams }: PageProps<'/activit
       ) : (
         <ul className="divide-y rounded-lg border">
           {rows.map((row) => {
-            const actor = row.actorName ?? row.actorEmail ?? 'Someone';
+            const actor = row.actorName ?? row.actorEmail ?? (row.action === 'qr.health_changed' ? 'Link check' : 'Someone');
             return (
               <li key={row.id} className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm">
                 <p>

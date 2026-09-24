@@ -43,6 +43,7 @@ function makePage(overrides: Partial<PageTemplate> = {}): PageTemplate {
     publishedAt: null,
     expiresAt: null,
     notes: null,
+    purpose: null,
     updatedBy: null,
     assignedTo: null,
     nextAction: null,

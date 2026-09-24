@@ -107,6 +107,12 @@ export const qrCodes = pgTable(
     assignedTo: uuid('assigned_to').references(() => userProfiles.id, { onDelete: 'set null' }),
     nextAction: text('next_action'),
     checklist: jsonb('checklist'), // ChecklistItem[] (see src/lib/workflow/checklist.ts)
+    purpose: text('purpose'), // what this code is for (e.g. "Table cards for the June event")
+
+    // Result of the last link check (daily cron or on demand): 'ok' | 'warning' | 'broken'.
+    healthStatus: text('health_status'),
+    healthMessage: text('health_message'),
+    healthCheckedAt: timestamp('health_checked_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -120,6 +126,25 @@ export const qrCodes = pgTable(
     // The QR list: one user's codes, newest first.
     index('idx_qr_codes_user_created').on(table.userId, table.createdAt),
   ],
+);
+
+// ============================================================
+// DESTINATION HISTORY (every change to a dynamic QR's destination)
+// ============================================================
+export const qrDestinationHistory = pgTable(
+  'qr_destination_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    qrCodeId: uuid('qr_code_id')
+      .notNull()
+      .references(() => qrCodes.id, { onDelete: 'cascade' }),
+    destination: text('destination').notNull(), // the destination that became current
+    previousDestination: text('previous_destination'), // null for the first entry
+    changedBy: uuid('changed_by').references(() => userProfiles.id, { onDelete: 'set null' }),
+    restoredFromId: uuid('restored_from_id'), // set when this entry was a restore
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('idx_qr_dest_history_qr_created').on(table.qrCodeId, table.createdAt)],
 );
 
 // ============================================================
@@ -150,6 +175,7 @@ export const pageTemplates = pgTable(
     assignedTo: uuid('assigned_to').references(() => userProfiles.id, { onDelete: 'set null' }),
     nextAction: text('next_action'),
     checklist: jsonb('checklist'),
+    purpose: text('purpose'),
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -242,6 +268,7 @@ export const activityLog = pgTable(
   ],
 );
 
+export type QRDestinationHistoryEntry = typeof qrDestinationHistory.$inferSelect;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
 export type QRTemplate = typeof qrTemplates.$inferSelect;

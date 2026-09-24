@@ -438,6 +438,16 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
                       <div className="flex gap-1.5">
                         <Badge variant="outline">Dynamic</Badge>
                         {item.isPaused && <Badge variant="destructive">Paused</Badge>}
+                        {item.healthStatus === 'broken' && (
+                          <Badge variant="destructive" title={item.healthMessage ?? undefined}>
+                            Not working
+                          </Badge>
+                        )}
+                        {item.healthStatus === 'warning' && (
+                          <Badge variant="outline" title={item.healthMessage ?? undefined}>
+                            Needs attention
+                          </Badge>
+                        )}
                       </div>
                     ) : (
                       <span className="text-muted-foreground">Static</span>
@@ -560,7 +570,11 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
         onFoldersChange={handleFoldersChange}
       />
 
-      <QrCheckDialog qrId={checkTarget?.id ?? null} qrName={checkTarget?.name ?? ''} onOpenChange={(open) => !open && setCheckTarget(null)} />
+      <QrCheckDialog
+        qr={checkTarget}
+        onOpenChange={(open) => !open && setCheckTarget(null)}
+        onRestored={() => setReloadKey((key) => key + 1)}
+      />
 
       {workflowTarget && (
         <WorkflowDialog

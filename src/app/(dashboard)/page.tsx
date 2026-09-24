@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { and, count, desc, eq, gt, isNull, or, sum } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, isNull, or, sum } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { pageTemplates, qrCodes, qrTemplates } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import type { QRStyleConfig } from '@/lib/qr/generator';
+import { getTeamMembers } from '@/lib/team/members';
 import { getQRTypeLabel, type QRType } from '@/types/qr';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ export default async function DashboardHomePage() {
     redirect('/login');
   }
 
+  const myProfileId = user.profile.id;
   const where = isNull(qrCodes.deletedAt);
   const templatesWhere = eq(qrTemplates.isSystem, false);
 
@@ -56,6 +58,19 @@ export default async function DashboardHomePage() {
       .limit(ASSIGNED_LIMIT),
   ]);
 
+  // Codes the daily link check found broken or close to it. Kept out of the batch
+  // above so one page never sends more queries at once than the connection pool has.
+  const [attention, members] = await Promise.all([
+    db
+      .select()
+      .from(qrCodes)
+      .where(and(isNull(qrCodes.deletedAt), inArray(qrCodes.healthStatus, ['broken', 'warning'])))
+      .orderBy(desc(qrCodes.healthCheckedAt))
+      .limit(ASSIGNED_LIMIT),
+    getTeamMembers(),
+  ]);
+  const nameOf = (id: string | null): string | null => members.find((m) => m.id === id)?.name ?? null;
+
   const assigned = [
     ...assignedQr.map((item) => ({ kind: 'QR code', href: `/qr/${item.id}`, name: item.name, nextAction: item.nextAction, checklist: item.checklist, updatedAt: item.updatedAt })),
     ...assignedPages.map((item) => ({ kind: 'Page', href: `/pages/${item.id}`, name: item.name, nextAction: item.nextAction, checklist: item.checklist, updatedAt: item.updatedAt })),
@@ -81,6 +96,37 @@ export default async function DashboardHomePage() {
           </Button>
         </CardHeader>
       </Card>
+
+      {attention.length > 0 && (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle>Needs attention</CardTitle>
+            <CardDescription>
+              The daily link check found problems with these codes. The person responsible is the one it is assigned to, or its creator.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y">
+              {attention.map((item) => {
+                const responsibleId = item.assignedTo ?? item.userId;
+                return (
+                  <li key={item.id} className="py-2 first:pt-0 last:pb-0">
+                    <Link href={`/qr/${item.id}`} className="font-medium hover:underline">
+                      {item.name}
+                    </Link>
+                    <span className={`ml-2 text-sm ${item.healthStatus === 'broken' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {item.healthStatus === 'broken' ? 'Not working' : 'Needs attention'}: {item.healthMessage}
+                    </span>
+                    <p className="text-sm text-muted-foreground">
+                      {responsibleId === myProfileId ? 'You are responsible' : `Responsible: ${nameOf(responsibleId) ?? 'a teammate'}`}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

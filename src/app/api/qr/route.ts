@@ -5,6 +5,7 @@ import { qrCodes } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { logActivity } from '@/lib/activity/log-activity';
 import { getOwnedFolder } from '@/lib/folders/get-owned-folder';
+import { recordDestinationChange } from '@/lib/qr/destination-history';
 import { CreateQRSchema } from '@/lib/qr/schemas';
 import { buildRedirectUrl, generateShortCode } from '@/lib/qr/short-code';
 import type { QRType } from '@/types/qr';
@@ -106,6 +107,15 @@ export async function POST(request: Request): Promise<Response> {
       folderId: data.folderId ?? null,
     })
     .returning();
+
+  if (created.targetUrl) {
+    await recordDestinationChange({
+      qrCodeId: created.id,
+      destination: created.targetUrl,
+      previousDestination: null,
+      changedBy: user.profile.id,
+    });
+  }
 
   await logActivity({
     userId: user.profile.id,

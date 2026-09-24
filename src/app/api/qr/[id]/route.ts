@@ -5,6 +5,7 @@ import { qrCodes } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { logActivity } from '@/lib/activity/log-activity';
 import { getOwnedFolder } from '@/lib/folders/get-owned-folder';
+import { destinationChanged, recordDestinationChange } from '@/lib/qr/destination-history';
 import { UpdateQRSchema } from '@/lib/qr/schemas';
 import { buildRedirectUrl, generateShortCode } from '@/lib/qr/short-code';
 
@@ -104,9 +105,24 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
       ...(data.folderId !== undefined && { folderId: data.folderId }),
       updatedAt: new Date(),
       updatedBy: user.profile.id,
+      // A new destination invalidates the last link check.
+      ...(destinationChanged(existing.targetUrl, payloadUpdate.targetUrl) && {
+        healthStatus: null,
+        healthMessage: null,
+        healthCheckedAt: null,
+      }),
     })
     .where(eq(qrCodes.id, id))
     .returning();
+
+  if (destinationChanged(existing.targetUrl, payloadUpdate.targetUrl)) {
+    await recordDestinationChange({
+      qrCodeId: id,
+      destination: payloadUpdate.targetUrl,
+      previousDestination: existing.targetUrl,
+      changedBy: user.profile.id,
+    });
+  }
 
   await logActivity({
     userId: user.profile.id,

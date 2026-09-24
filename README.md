@@ -12,10 +12,21 @@ Live site: <https://memento-qr.vercel.app>
 - **Templates**: built-in and team-made QR design templates, plus a card designer.
 - **Page builder**: drag-and-drop landing pages (hero, text, buttons, FAQ, gallery, video, map, columns, contact, social and more) with page background color or image. Export as one HTML file or publish at a shareable link with an optional expiry date.
 - **Organizing**: folders, batch import from CSV (up to 200 rows), duplicate a code for A/B variants, media library, activity log.
+- **Health check**: "Is this QR working?" gives a plain verdict (Looks good, Needs attention, Not working) with a suggested fix. It decodes the code with a test reader, checks contrast, logo size and density, and confirms the destination answers.
+- **Link monitoring**: a daily check of every dynamic code (paused, expired, scan limit, broken destination) with a "Needs attention" card on the dashboard and an entry in the activity log.
+- **Destination history**: every change to a dynamic code's destination (who, when, from what), with one-click restore, plus a purpose note per code.
+- **Print-ready cards**: real sizes (business card, postcard, custom mm or inches), optional bleed and crop marks, a scan-size warning, and a print-ready PDF.
 - **Team workspace**: everything is shared. Assign items to a teammate with a next action, note and optional checklist, search across everything, and check whether a saved QR still works.
 - **Data and account**: JSON backup and restore, dark mode, collapsible sidebar, in-app user guide, password reset.
 
 ## Latest improvements
+
+### v1.2.0
+- **QR health check verdict**: Looks good / Needs attention / Not working, each problem with a suggested fix; a test reader decodes the rendered code to prove it scans.
+- **Ongoing link monitoring**: a daily cron checks dynamic codes and flags broken ones on the dashboard and in the activity log (in-app only; there is no email sending).
+- **Destination history and restore**, and a **purpose** note on codes and pages.
+- **Print-ready PDF** with bleed and crop marks, real print sizes and a warning when the QR would print too small.
+- Fixes: functions now run next to the database (Tokyo), and the database pool was resized so pages no longer stall on the transaction pooler.
 
 ### v1.1.0
 - **Shared team workspace**: QR codes, pages, folders, media and analytics are visible to and editable by everyone. Each item records who created it and who last edited it.
@@ -27,9 +38,13 @@ Live site: <https://memento-qr.vercel.app>
 ### v1.0.0
 - Public launch after full QA (unit, end-to-end, security and accessibility suites), keep-alive cron for the free database tier, and login/upload/redirect hardening.
 
+## Ideas being explored
+
+- **Memorial and keepsake pages**: QR-linked pages with family contributions, approval before publishing, private invitations and downloadable archives. This is a direction to try with real users before building.
+
 ## Tech stack
 
-Next.js 16 (App Router, TypeScript strict), Tailwind CSS v4 + shadcn/ui, Supabase (Auth, Postgres, Storage), Drizzle ORM, `qr-code-styling`, Puck page editor, Recharts, Vitest + Testing Library, Playwright, pnpm.
+Next.js 16 (App Router, TypeScript strict), Tailwind CSS v4 + shadcn/ui, Supabase (Auth, Postgres, Storage), Drizzle ORM, `qr-code-styling`, `jsqr` (scan test), `pdf-lib` (print PDFs), Puck page editor, Recharts, Vitest + Testing Library, Playwright, pnpm.
 
 ## Getting started
 
@@ -60,7 +75,7 @@ End-to-end tests seed test data into the connected database (`pnpm db:seed`) and
 
 ## Deploying
 
-Deployed on Vercel from `main`. Set the environment variables from `.env.example`; use Supabase's transaction pooler (port 6543) for `DATABASE_URL`. A daily cron (`vercel.json`) keeps the free Supabase project awake. Before going live, work through `docs/qa/manual-checklist.md`.
+Deployed on Vercel from `main`. Set the environment variables from `.env.example`; use Supabase's transaction pooler (port 6543) for `DATABASE_URL`. Two daily crons (`vercel.json`) keep the free Supabase project awake and check dynamic QR links (both need `CRON_SECRET`). Functions run in `hnd1` (Tokyo) next to the database. Before going live, work through `docs/qa/manual-checklist.md`.
 
 ## Documentation
 

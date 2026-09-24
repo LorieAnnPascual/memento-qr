@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { Download } from 'lucide-react';
 
@@ -20,6 +21,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+// Loaded only when someone opens it: it brings in the PDF library.
+const PrintCardDialog = dynamic(() => import('./print-card-dialog').then((m) => m.PrintCardDialog), { ssr: false });
+
 interface QRExportProps {
   config: QRDesignConfig;
   fileName: string;
@@ -36,6 +40,7 @@ const FORMATS: { extension: FileExtension; label: string }[] = [
 
 export function QRExport({ config, fileName, title, socialLinks = [] }: QRExportProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
 
   async function handleExport(extension: FileExtension, print: boolean): Promise<void> {
     if (!config.data) {
@@ -77,7 +82,16 @@ export function QRExport({ config, fileName, title, socialLinks = [] }: QRExport
     }
   }
 
+  function handleOpenPrint(): void {
+    if (!config.data) {
+      toast.error('Fill in the QR content before exporting.');
+      return;
+    }
+    setPrintOpen(true);
+  }
+
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="outline" size="sm" disabled={isExporting}>
@@ -97,7 +111,21 @@ export function QRExport({ config, fileName, title, socialLinks = [] }: QRExport
         <DropdownMenuItem onSelect={() => handleExport('svg', true)}>
           High-res SVG (2048px)
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Print (card)</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={handleOpenPrint}>Print-ready PDF…</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    {printOpen && (
+      <PrintCardDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        config={config}
+        title={title || fileName || 'QR code'}
+        socialLinks={socialLinks}
+        fileName={fileName || 'qr-code'}
+      />
+    )}
+    </>
   );
 }

@@ -48,6 +48,12 @@ export function describeActivity(entry: DescribableActivity): string {
       return `imported ${plural(detail<number>(entry.details, 'count') ?? 0, 'QR code')} from a spreadsheet`;
     case 'qr.moved':
       return `moved ${plural(detail<number>(entry.details, 'count') ?? 0, 'QR code')} to ${name}`;
+    case 'qr.destination_restored':
+      return `restored an earlier destination of the QR code ${name}`;
+    case 'qr.health_changed':
+      return detail<string>(entry.details, 'status') === 'broken'
+        ? `found that ${name} stopped working (${detail<string>(entry.details, 'message') ?? 'needs attention'})`
+        : `found that ${name} is working again`;
     case 'qr.handoff':
       return describeHandoff('the QR code', name, entry.details);
     case 'folder.created':

@@ -6,7 +6,8 @@ import { activityLog, type NewActivityLogEntry } from '@/lib/db/schema';
 import type { ActivityAction } from './actions';
 
 export interface ActivityInput {
-  userId: string;
+  /** Who did it; null for something the system did (e.g. the daily link check). */
+  userId: string | null;
   action: ActivityAction;
   entityType: 'qr' | 'page' | 'folder' | 'template' | 'export';
   entityId?: string | null;
@@ -34,7 +35,7 @@ export async function logActivity(input: ActivityInput): Promise<void> {
   };
 
   try {
-    if (input.collapseWithinMs && input.entityId) {
+    if (input.collapseWithinMs && input.entityId && input.userId) {
       const [recent] = await db
         .select({ id: activityLog.id })
         .from(activityLog)

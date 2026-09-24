@@ -106,7 +106,10 @@ const SECTIONS: GuideSection[] = [
     steps: [
       'Everything is shared: QR codes, pages, folders, media and analytics are visible to and editable by the whole team. Each item remembers who created it and who edited it last.',
       'Handoff: on the QR Codes or Pages list, click the person icon to assign an item to a teammate, write the next action and an internal note, and tick off an optional checklist. Things assigned to you show on the dashboard.',
-      'Is it working? Click the heart-pulse icon on a QR code to see whether a scan would work right now (paused, expired, scan limit) and whether its destination page answers. This never counts as a scan.',
+      'Is it working? Click the heart-pulse icon on a QR code. You get Looks good, Needs attention or Not working, with a suggested fix for each problem. A test reader scans the code, the design is checked (contrast, logo size, density) and the destination page is checked. This never counts as a scan.',
+      'Ongoing checks: every day the app re-checks dynamic codes. Broken ones show "Not working" in the list and in a "Needs attention" card on the dashboard, naming the person responsible (who it is assigned to, or its creator).',
+      'Destination history: for a dynamic code, the same dialog lists every change of destination (who and when). Restore an earlier one with a click; the printed code does not change.',
+      'Purpose: in the handoff dialog, note what a code is for (for example, table cards for the June event).',
       'Search: the box at the top searches QR codes, pages, folders and templates, including notes and next actions.',
     ],
   },
@@ -115,6 +118,7 @@ const SECTIONS: GuideSection[] = [
     title: 'Stay organized',
     steps: [
       'Folders: group codes into folders from the QR Codes list. Deleting a folder keeps its codes.',
+      'Print-ready card: in the QR designer choose Download, then Print-ready PDF. Pick a size (business card, postcard or your own), optionally add bleed and crop marks, check the warnings, and download the PDF. The preview shows proportions only; print the PDF at 100% (Actual size) and scan it before a big run.',
       'Batch import: create many website, text, phone or email codes at once from a CSV file (up to 200 rows).',
       'Duplicate: copy a code to test an A/B variant, then Compare two codes side by side.',
       'Activity: see what the team created, changed or deleted.',

@@ -40,13 +40,13 @@ async function loadElementImages(elements: CardElement[]): Promise<Map<string, H
   return images;
 }
 
-async function exportCustomCardAsRaster(
+/** Draws a freeform card at `scale` times its design size; also reports where its QR code sits. */
+export async function renderCustomCardCanvas(
   qr: QRCodeStyling,
-  extension: Exclude<FileExtension, 'svg'>,
-  fileName: string,
   design: CustomCardDesign,
   background: CustomCardBackground,
-): Promise<void> {
+  scale: number = RASTER_SCALE,
+): Promise<{ canvas: HTMLCanvasElement; qrRect: { x: number; y: number; width: number; height: number } | null }> {
   const textElements = design.elements.filter(
     (el): el is Extract<CardElement, { type: 'text' }> => el.type === 'text',
   );
@@ -60,24 +60,24 @@ async function exportCustomCardAsRaster(
   await Promise.all(
     textElements.map((el) =>
       document.fonts.load(
-        `${el.bold ? '700' : '400'} ${el.fontSize * RASTER_SCALE}px '${CARD_FONTS[el.fontFamily].family}'`,
+        `${el.bold ? '700' : '400'} ${el.fontSize * scale}px '${CARD_FONTS[el.fontFamily].family}'`,
       ),
     ),
   );
 
-  const width = design.width * RASTER_SCALE;
-  const height = design.height * RASTER_SCALE;
+  const width = design.width * scale;
+  const height = design.height * scale;
 
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = Math.round(width);
+  canvas.height = Math.round(height);
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Canvas is not supported in this browser');
 
   context.fillStyle = background.backgroundColor || '#FFFFFF';
   context.fillRect(0, 0, width, height);
   if (backgroundImage) {
-    const blur = (background.backgroundImageBlur ?? 0) * RASTER_SCALE;
+    const blur = (background.backgroundImageBlur ?? 0) * scale;
     context.filter = blur ? `blur(${blur}px)` : 'none';
     drawCoverImage(context, backgroundImage, -blur, -blur, width + blur * 2, height + blur * 2);
     context.filter = 'none';
@@ -86,10 +86,10 @@ async function exportCustomCardAsRaster(
   const sorted = [...design.elements].sort((a, b) => a.zIndex - b.zIndex);
 
   for (const el of sorted) {
-    const x = el.x * RASTER_SCALE;
-    const y = el.y * RASTER_SCALE;
-    const w = el.width * RASTER_SCALE;
-    const h = el.height * RASTER_SCALE;
+    const x = el.x * scale;
+    const y = el.y * scale;
+    const w = el.width * scale;
+    const h = el.height * scale;
 
     if (el.type === 'qr') {
       context.drawImage(qrImage, x, y, w, h);
@@ -108,7 +108,7 @@ async function exportCustomCardAsRaster(
       const image = elementImages.get(el.id);
       if (image) drawContainImage(context, image, x, y, w, h);
     } else if (el.type === 'text') {
-      const fontSize = el.fontSize * RASTER_SCALE;
+      const fontSize = el.fontSize * scale;
       const font = CARD_FONTS[el.fontFamily];
       context.font = `${el.bold ? '700' : '400'} ${fontSize}px '${font.family}', ${font.fallback}`;
       context.fillStyle = el.color;
@@ -125,12 +125,29 @@ async function exportCustomCardAsRaster(
     }
   }
 
+  const qrElement = design.elements.find((el) => el.type === 'qr');
+  const qrRect = qrElement
+    ? { x: qrElement.x * scale, y: qrElement.y * scale, width: qrElement.width * scale, height: qrElement.height * scale }
+    : null;
+
+  return { canvas, qrRect };
+}
+
+async function exportCustomCardAsRaster(
+  qr: QRCodeStyling,
+  extension: Exclude<FileExtension, 'svg'>,
+  fileName: string,
+  design: CustomCardDesign,
+  background: CustomCardBackground,
+): Promise<void> {
+  const { canvas } = await renderCustomCardCanvas(qr, design, background);
   const mimeType = extension === 'jpeg' ? 'image/jpeg' : `image/${extension}`;
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.95));
   if (!blob) throw new Error('Failed to export card image');
 
   downloadBlob(blob, `${fileName}.${extension}`);
 }
+
 
 function svgTextMarkup(el: Extract<CardElement, { type: 'text' }>): string {
   const font = CARD_FONTS[el.fontFamily];
