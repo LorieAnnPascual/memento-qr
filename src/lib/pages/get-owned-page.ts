@@ -7,8 +7,8 @@ export type OwnedPageResult =
   | { ok: true; page: PageTemplate }
   | { ok: false; response: Response };
 
-/** Loads a page and confirms the current user owns it (system templates are never editable/publishable). */
-export async function getOwnedPage(id: string, userProfileId: string): Promise<OwnedPageResult> {
+/** Loads a team page for editing (system templates are never editable/publishable). Everyone on the team may edit any page. */
+export async function getOwnedPage(id: string): Promise<OwnedPageResult> {
   const [page] = await db.select().from(pageTemplates).where(eq(pageTemplates.id, id)).limit(1);
 
   if (!page) {
@@ -18,11 +18,11 @@ export async function getOwnedPage(id: string, userProfileId: string): Promise<O
     };
   }
 
-  if (page.isSystem || page.userId !== userProfileId) {
+  if (page.isSystem) {
     return {
       ok: false,
       response: Response.json(
-        { error: 'You can only modify your own pages', code: 'FORBIDDEN' },
+        { error: 'Built-in templates cannot be modified', code: 'FORBIDDEN' },
         { status: 403 },
       ),
     };

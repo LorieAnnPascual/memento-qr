@@ -154,13 +154,21 @@ describe('GET/PUT/DELETE /api/pages/[id]', () => {
     expect(response.status).toBe(403);
   });
 
-  it('PUT refuses to edit another user\'s page', async () => {
+  it('PUT lets any teammate edit a page and records who changed it', async () => {
     getCurrentUserMock.mockResolvedValue(USER);
     dbMock.select.mockReturnValue(chainable([{ ...OWN_PAGE, userId: 'someone-else' }]));
+    let captured: Record<string, unknown> = {};
+    dbMock.update.mockReturnValue({
+      set: (v: Record<string, unknown>) => {
+        captured = v;
+        return chainable([{ ...OWN_PAGE, ...v }]);
+      },
+    });
     const { PUT } = await import('@/app/api/pages/[id]/route');
 
     const response = await PUT(req('/api/pages/page-1', { method: 'PUT', body: JSON.stringify({ name: 'x' }) }), { params });
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(200);
+    expect(captured.updatedBy).toBe(USER.profile.id);
   });
 
   it('PUT returns 400 for an invalid design', async () => {
@@ -190,13 +198,22 @@ describe('GET/PUT/DELETE /api/pages/[id]', () => {
     expect(captured).toMatchObject({ name: 'Renamed', puckData });
   });
 
-  it('DELETE refuses a page the user does not own', async () => {
+  it('DELETE refuses a system template', async () => {
     getCurrentUserMock.mockResolvedValue(USER);
-    dbMock.select.mockReturnValue(chainable([{ ...OWN_PAGE, userId: 'someone-else' }]));
+    dbMock.select.mockReturnValue(chainable([{ ...OWN_PAGE, isSystem: true, userId: null }]));
     const { DELETE } = await import('@/app/api/pages/[id]/route');
 
     expect((await DELETE(req('/api/pages/page-1', { method: 'DELETE' }), { params })).status).toBe(403);
     expect(dbMock.delete).not.toHaveBeenCalled();
+  });
+
+  it('DELETE lets any teammate remove a page', async () => {
+    getCurrentUserMock.mockResolvedValue(USER);
+    dbMock.select.mockReturnValue(chainable([{ ...OWN_PAGE, userId: 'someone-else' }]));
+    dbMock.delete.mockReturnValue(chainable([]));
+    const { DELETE } = await import('@/app/api/pages/[id]/route');
+
+    expect((await DELETE(req('/api/pages/page-1', { method: 'DELETE' }), { params })).status).toBe(204);
   });
 
   it('DELETE removes an owned page', async () => {

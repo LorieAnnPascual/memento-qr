@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
   }
 
   const { id } = await params;
-  const owned = await getOwnedPage(id, user.profile.id);
+  const owned = await getOwnedPage(id);
   if (!owned.ok) return owned.response;
   const { page } = owned;
 
@@ -82,7 +82,7 @@ export async function DELETE(_request: Request, { params }: RouteContext): Promi
   }
 
   const { id } = await params;
-  const owned = await getOwnedPage(id, user.profile.id);
+  const owned = await getOwnedPage(id);
   if (!owned.ok) return owned.response;
 
   // The short code is preserved so re-publishing restores the same URL.

@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Memento QR
 
-## Getting Started
+An internal QR code generator and landing-page builder for a small team. Sign-in only (no public sign-up), runs on free tiers (Vercel + Supabase).
 
-First, run the development server:
+Live site: <https://memento-qr.vercel.app>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **QR codes**: 11 types (URL, text, phone, SMS, email, WiFi, vCard, WhatsApp, event, location, social) with full styling: dot and corner shapes, colors and gradients, logos, card layouts, and PNG / SVG / JPEG / WebP downloads.
+- **Dynamic codes**: the printed code never changes, but its destination can. Pause, set an expiry date or a scan limit. Every scan is counted.
+- **Analytics**: scans over time, devices, browsers, countries and cities (IP addresses are hashed, never stored), per-code drill-down, CSV export, side-by-side comparison.
+- **Templates**: built-in and team-made QR design templates, plus a card designer.
+- **Page builder**: drag-and-drop landing pages (hero, text, buttons, FAQ, gallery, video, map, columns, contact, social and more) with page background color or image. Export as one HTML file or publish at a shareable link with an optional expiry date.
+- **Organizing**: folders, batch import from CSV (up to 200 rows), duplicate a code for A/B variants, media library, activity log.
+- **Team workspace**: everything is shared. Assign items to a teammate with a next action, note and optional checklist, search across everything, and check whether a saved QR still works.
+- **Data and account**: JSON backup and restore, dark mode, collapsible sidebar, in-app user guide, password reset.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Latest improvements
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### v1.1.0
+- **Shared team workspace**: QR codes, pages, folders, media and analytics are visible to and editable by everyone. Each item records who created it and who last edited it.
+- **Handoff**: assign to a teammate, set a next action and internal note; an "Assigned to you" card on the dashboard.
+- **Checklist**: optional, editable steps on any QR code or page.
+- **Unified search**: QR codes, pages, folders and templates from one box, including notes and next actions.
+- **"Is this QR working?" check**: reports paused, expired, scan-limit and destination status without counting a scan.
 
-## Learn More
+### v1.0.0
+- Public launch after full QA (unit, end-to-end, security and accessibility suites), keep-alive cron for the free database tier, and login/upload/redirect hardening.
 
-To learn more about Next.js, take a look at the following resources:
+## Tech stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Next.js 16 (App Router, TypeScript strict), Tailwind CSS v4 + shadcn/ui, Supabase (Auth, Postgres, Storage), Drizzle ORM, `qr-code-styling`, Puck page editor, Recharts, Vitest + Testing Library, Playwright, pnpm.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Getting started
 
-## Deploy on Vercel
+1. Install dependencies: `pnpm install`
+2. Copy `.env.example` to `.env.local` and fill in the Supabase keys, `DATABASE_URL`, `NEXT_PUBLIC_APP_URL` and `CRON_SECRET`.
+3. Create the tables: `pnpm db:push`
+4. Seed the built-in templates: `pnpm db:seed-templates` and `pnpm db:seed-page-templates`
+5. Create a user in the Supabase dashboard (Authentication → Users, Auto Confirm), then link it to a profile:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   pnpm db:seed-user -- --auth-id=<uuid> --email=<email> --name="Full Name" --role=admin
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   A user needs both the Supabase account and a profile row, or the app sends them back to the login page.
+6. Start the app: `pnpm dev` (<http://localhost:3000>)
+
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` / `pnpm build` / `pnpm start` | Develop, build, run production |
+| `pnpm lint` / `pnpm typecheck` | Static checks |
+| `pnpm test:run` | Unit and integration tests |
+| `pnpm test:e2e` | Playwright end-to-end tests (see below) |
+| `pnpm db:generate` / `db:push` / `db:studio` | Database schema tools |
+
+End-to-end tests seed test data into the connected database (`pnpm db:seed`) and must be followed by `pnpm db:teardown`. Because the workspace is shared, do not run them against a database your team is using.
+
+## Deploying
+
+Deployed on Vercel from `main`. Set the environment variables from `.env.example`; use Supabase's transaction pooler (port 6543) for `DATABASE_URL`. A daily cron (`vercel.json`) keeps the free Supabase project awake. Before going live, work through `docs/qa/manual-checklist.md`.
+
+## Documentation
+
+- `docs/architecture.md`: full technical specification
+- `docs/qa/qa-report.md`: pre-launch QA report
+- `docs/qa/manual-checklist.md`: checks that need real devices
+- `CLAUDE.md`: development notes and conventions

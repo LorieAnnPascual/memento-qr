@@ -17,7 +17,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
   }
 
   const { id } = await params;
-  const owned = await getOwnedPage(id, user.profile.id);
+  const owned = await getOwnedPage(id);
   if (!owned.ok) return owned.response;
 
   const body = await request.json().catch(() => null);

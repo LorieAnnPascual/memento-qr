@@ -17,7 +17,6 @@ export default async function BatchQRPage() {
     db
       .select({ id: folders.id, name: folders.name })
       .from(folders)
-      .where(eq(folders.userId, user.profile.id))
       .orderBy(asc(folders.name)),
     db
       .select({ id: qrTemplates.id, name: qrTemplates.name, styleConfig: qrTemplates.styleConfig })

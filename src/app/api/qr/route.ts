@@ -28,7 +28,7 @@ export async function GET(request: Request): Promise<Response> {
   const search = searchParams.get('search')?.trim();
   const qrType = searchParams.get('type') as QRType | null;
 
-  const conditions = [eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt)];
+  const conditions = [isNull(qrCodes.deletedAt)];
   if (search) conditions.push(ilike(qrCodes.name, `%${search}%`));
   if (qrType) conditions.push(eq(qrCodes.qrType, qrType));
 
@@ -36,6 +36,12 @@ export async function GET(request: Request): Promise<Response> {
   const folder = searchParams.get('folder');
   if (folder === 'none') conditions.push(isNull(qrCodes.folderId));
   else if (folder && /^[0-9a-f-]{36}$/i.test(folder)) conditions.push(eq(qrCodes.folderId, folder));
+
+  // "me" = handed to the signed-in person, "none" = nobody yet, or a teammate's id.
+  const assigned = searchParams.get('assigned');
+  if (assigned === 'me') conditions.push(eq(qrCodes.assignedTo, user.profile.id));
+  else if (assigned === 'none') conditions.push(isNull(qrCodes.assignedTo));
+  else if (assigned && /^[0-9a-f-]{36}$/i.test(assigned)) conditions.push(eq(qrCodes.assignedTo, assigned));
 
   const where = and(...conditions);
 
@@ -72,7 +78,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const data = parsed.data;
 
-  if (data.folderId && !(await getOwnedFolder(data.folderId, user.profile.id))) {
+  if (data.folderId && !(await getOwnedFolder(data.folderId))) {
     return Response.json({ error: 'Folder not found', code: 'FOLDER_NOT_FOUND' }, { status: 404 });
   }
 

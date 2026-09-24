@@ -19,6 +19,13 @@ function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
+function describeHandoff(noun: string, name: string, details: unknown): string {
+  const assignee = detail<string | null>(details, 'assignedToName');
+  if (assignee) return `handed ${noun} ${name} to ${assignee}`;
+  if (detail<boolean>(details, 'unassigned')) return `unassigned ${noun} ${name}`;
+  return `updated the handoff notes or checklist on ${noun} ${name}`;
+}
+
 /** A short, human sentence fragment for an activity entry, e.g. `created the QR code "Menu"`. */
 export function describeActivity(entry: DescribableActivity): string {
   const name = quoted(entry.entityName);
@@ -41,6 +48,8 @@ export function describeActivity(entry: DescribableActivity): string {
       return `imported ${plural(detail<number>(entry.details, 'count') ?? 0, 'QR code')} from a spreadsheet`;
     case 'qr.moved':
       return `moved ${plural(detail<number>(entry.details, 'count') ?? 0, 'QR code')} to ${name}`;
+    case 'qr.handoff':
+      return describeHandoff('the QR code', name, entry.details);
     case 'folder.created':
       return `created the folder ${name}`;
     case 'folder.renamed':
@@ -61,6 +70,8 @@ export function describeActivity(entry: DescribableActivity): string {
       return detail<string | null>(entry.details, 'expiresAt')
         ? `set an expiry date on the page ${name}`
         : `removed the expiry date from the page ${name}`;
+    case 'page.handoff':
+      return describeHandoff('the page', name, entry.details);
     case 'template.created':
       return `created the QR template ${name}`;
     case 'template.updated':

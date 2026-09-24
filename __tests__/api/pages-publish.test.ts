@@ -61,12 +61,9 @@ describe('POST /api/pages/[id]/publish', () => {
     expect((await POST(call('POST', {}), { params })).status).toBe(404);
   });
 
-  it('returns 403 for someone else\'s page or a system template', async () => {
+  it('returns 403 for a system template', async () => {
     getCurrentUserMock.mockResolvedValue(USER);
     const { POST } = await import('@/app/api/pages/[id]/publish/route');
-
-    dbMock.select.mockReturnValue(chainable([{ ...OWN_PAGE, userId: 'other' }]));
-    expect((await POST(call('POST', {}), { params })).status).toBe(403);
 
     dbMock.select.mockReturnValue(chainable([{ ...OWN_PAGE, isSystem: true, userId: null }]));
     expect((await POST(call('POST', {}), { params })).status).toBe(403);

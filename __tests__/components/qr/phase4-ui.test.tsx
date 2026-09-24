@@ -232,7 +232,7 @@ describe('QRCodeList folders, selection and duplicate', () => {
   }
 
   function renderList() {
-    return render(<QRCodeList initialItems={items} initialTotal={3} pageSize={20} initialFolders={folders} />);
+    return render(<QRCodeList initialItems={items} initialTotal={3} pageSize={20} initialFolders={folders} members={[]} />);
   }
 
   it('shows which folder a code is in', () => {

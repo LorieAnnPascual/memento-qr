@@ -47,6 +47,10 @@ test.describe('Every API refuses signed-out requests (401)', () => {
     ['GET', '/api/analytics?format=csv'],
     ['GET', '/api/export'],
     ['GET', '/api/export?scope=team'],
+    ['GET', '/api/search?q=menu'],
+    ['GET', `/api/qr/${UUID}/check`],
+    ['PUT', `/api/workflow/qr/${UUID}`],
+    ['PUT', `/api/workflow/page/${UUID}`],
     ['GET', '/api/profile'],
     ['PUT', '/api/profile'],
   ];
@@ -61,62 +65,67 @@ test.describe('Every API refuses signed-out requests (401)', () => {
   }
 });
 
-test.describe('People cannot reach each other\'s data', () => {
-  test('a second user cannot read, change, delete, copy or move someone else\'s QR code', async ({ request, baseURL }) => {
-    const mine = await createQR(request, { name: qaName('private') });
+test.describe('The team shares one workspace', () => {
+  test('a teammate can open, edit, hand off, copy and check someone else\'s QR code', async ({ request, baseURL }) => {
+    const mine = await createQR(request, { name: qaName('shared') });
     const other = await asUser(baseURL, USERS.viewer.file);
     try {
-      expect((await other.get(`/api/qr/${mine.id}`)).status()).toBe(404);
-      expect((await other.put(`/api/qr/${mine.id}`, { data: { name: 'hijacked' } })).status()).toBe(404);
-      expect((await other.post(`/api/qr/${mine.id}/duplicate`)).status()).toBe(404);
+      expect((await other.get(`/api/qr/${mine.id}`)).status()).toBe(200);
 
-      const moved = await other.post('/api/qr/move', { data: { ids: [mine.id], folderId: null } });
-      expect((await moved.json()).moved).toBe(0);
+      const edited = await other.put(`/api/qr/${mine.id}`, { data: { name: qaName('shared edited') } });
+      expect(edited.status()).toBe(200);
+      const editedBody = (await edited.json()) as { userId: string; updatedBy: string };
+      // The creator is kept; the editor is recorded separately.
+      expect(editedBody.updatedBy).not.toBe(editedBody.userId);
 
-      expect((await other.delete(`/api/qr/${mine.id}`)).status()).toBe(404);
+      const handoff = await other.put(`/api/workflow/qr/${mine.id}`, {
+        data: { nextAction: 'Send to the printer', checklist: [{ id: 'a', label: 'Verify the QR destination', done: false }] },
+      });
+      expect(handoff.status()).toBe(200);
+      expect(((await handoff.json()) as { nextAction: string }).nextAction).toBe('Send to the printer');
 
-      // Untouched for the real owner.
-      const stillThere = (await (await request.get(`/api/qr/${mine.id}`)).json()) as { name: string };
-      expect(stillThere.name).toBe(mine.name);
+      const check = await other.get(`/api/qr/${mine.id}/check`);
+      expect(check.status()).toBe(200);
+      expect(((await check.json()) as { status: { label: string } }).status.label).toBe('Static code');
+
+      expect((await other.post(`/api/qr/${mine.id}/duplicate`)).status()).toBe(201);
     } finally {
       await other.dispose();
       await deleteQR(request, mine.id);
     }
   });
 
-  test('QR lists and analytics only include your own codes', async ({ request, baseURL }) => {
-    const other = await asUser(baseURL, USERS.viewer.file);
+  test('QR lists and analytics are shared by the whole team', async ({ baseURL }) => {
+    const viewer = await asUser(baseURL, USERS.viewer.file);
+    const editor = await asUser(baseURL, USERS.editor.file);
     try {
-      const list = (await (await other.get('/api/qr?limit=100')).json()) as { items: { name: string }[] };
+      const list = (await (await viewer.get('/api/qr?limit=100')).json()) as { items: { name: string }[] };
       const names = list.items.map((item) => item.name);
 
-      expect(names.some((name) => name.startsWith('[QA] Dynamic'))).toBe(false); // the editor's seeded codes
+      expect(names.some((name) => name.startsWith('[QA] Dynamic'))).toBe(true); // the editor's seeded codes
       expect(names).toContain('[QA] Viewer private');
 
-      const analytics = (await (await other.get('/api/analytics')).json()) as { totalScans: number };
-      expect(analytics.totalScans).toBe(0);
+      const seenByViewer = (await (await viewer.get('/api/analytics')).json()) as { totalScans: number };
+      const seenByEditor = (await (await editor.get('/api/analytics')).json()) as { totalScans: number };
+      expect(seenByViewer.totalScans).toBe(seenByEditor.totalScans);
     } finally {
-      await other.dispose();
+      await viewer.dispose();
+      await editor.dispose();
     }
   });
 
-  test('a second user cannot read, edit, publish or delete someone else\'s page', async ({ request, baseURL }) => {
+  test('a teammate can edit and delete someone else\'s page, but not a built-in template', async ({ request, baseURL }) => {
     const page = await createPage(request);
     const other = await asUser(baseURL, USERS.viewer.file);
     try {
-      for (const response of [
-        await other.get(`/api/pages/${page.id}`),
-        await other.put(`/api/pages/${page.id}`, { data: { name: 'hijacked' } }),
-        await other.post(`/api/pages/${page.id}/publish`, { data: {} }),
-        await other.put(`/api/pages/${page.id}/expiry`, { data: { expiresAt: null } }),
-        await other.delete(`/api/pages/${page.id}`),
-      ]) {
-        expect([403, 404]).toContain(response.status());
-      }
+      expect((await other.get(`/api/pages/${page.id}`)).status()).toBe(200);
+      expect((await other.put(`/api/pages/${page.id}`, { data: { name: 'edited by a teammate' } })).status()).toBe(200);
 
-      const stillThere = (await (await request.get(`/api/pages/${page.id}`)).json()) as { name: string; isPublished: boolean };
-      expect(stillThere.name).toBe(page.name);
-      expect(stillThere.isPublished).toBe(false);
+      const stillThere = (await (await request.get(`/api/pages/${page.id}`)).json()) as { name: string };
+      expect(stillThere.name).toBe('edited by a teammate');
+
+      const templates = (await (await other.get('/api/pages')).json()) as { items: { id: string; isSystem: boolean }[] };
+      expect(templates.items.every((item) => !item.isSystem)).toBe(true);
     } finally {
       await other.dispose();
       await deletePage(request, page.id);

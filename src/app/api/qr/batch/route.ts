@@ -57,7 +57,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  if (folderId && !(await getOwnedFolder(folderId, user.profile.id))) {
+  if (folderId && !(await getOwnedFolder(folderId))) {
     return Response.json({ error: 'Folder not found', code: 'FOLDER_NOT_FOUND' }, { status: 404 });
   }
 

@@ -19,7 +19,7 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
 
   const [template] = await db.select().from(qrTemplates).where(eq(qrTemplates.id, id)).limit(1);
 
-  if (!template || (!template.isPublic && template.userId !== user.profile.id)) {
+  if (!template) {
     return Response.json({ error: 'Template not found', code: 'TEMPLATE_NOT_FOUND' }, { status: 404 });
   }
 
@@ -41,9 +41,9 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
     return Response.json({ error: 'Template not found', code: 'TEMPLATE_NOT_FOUND' }, { status: 404 });
   }
 
-  if (existing.isSystem || existing.userId !== user.profile.id) {
+  if (existing.isSystem) {
     return Response.json(
-      { error: 'You can only edit your own templates', code: 'FORBIDDEN' },
+      { error: 'Built-in templates cannot be edited', code: 'FORBIDDEN' },
       { status: 403 },
     );
   }
@@ -99,9 +99,9 @@ export async function DELETE(_request: Request, { params }: RouteContext): Promi
     return Response.json({ error: 'Template not found', code: 'TEMPLATE_NOT_FOUND' }, { status: 404 });
   }
 
-  if (existing.isSystem || existing.userId !== user.profile.id) {
+  if (existing.isSystem) {
     return Response.json(
-      { error: 'You can only delete your own templates', code: 'FORBIDDEN' },
+      { error: 'Built-in templates cannot be deleted', code: 'FORBIDDEN' },
       { status: 403 },
     );
   }

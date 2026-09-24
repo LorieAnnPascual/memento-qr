@@ -1,4 +1,4 @@
-import { and, eq, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { pageTemplates } from '@/lib/db/schema';
@@ -21,12 +21,7 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
   const [page] = await db
     .select()
     .from(pageTemplates)
-    .where(
-      and(
-        eq(pageTemplates.id, id),
-        or(eq(pageTemplates.isPublic, true), eq(pageTemplates.userId, user.profile.id)),
-      ),
-    )
+    .where(eq(pageTemplates.id, id))
     .limit(1);
 
   if (!page) {
@@ -44,7 +39,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
   }
 
   const { id } = await params;
-  const owned = await getOwnedPage(id, user.profile.id);
+  const owned = await getOwnedPage(id);
   if (!owned.ok) return owned.response;
 
   const body = await request.json().catch(() => null);
@@ -67,6 +62,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
       ...(data.category !== undefined && { category: data.category }),
       ...(data.puckData !== undefined && { puckData: data.puckData }),
       updatedAt: new Date(),
+      updatedBy: user.profile.id,
     })
     .where(eq(pageTemplates.id, id))
     .returning();
@@ -92,7 +88,7 @@ export async function DELETE(_request: Request, { params }: RouteContext): Promi
   }
 
   const { id } = await params;
-  const owned = await getOwnedPage(id, user.profile.id);
+  const owned = await getOwnedPage(id);
   if (!owned.ok) return owned.response;
 
   await db.delete(pageTemplates).where(eq(pageTemplates.id, id));

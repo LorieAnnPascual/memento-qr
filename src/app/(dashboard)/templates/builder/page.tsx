@@ -19,7 +19,7 @@ export default async function CardBuilderPage({ searchParams }: PageProps<'/temp
   if (typeof id === 'string') {
     const [template] = await db.select().from(qrTemplates).where(eq(qrTemplates.id, id)).limit(1);
 
-    if (!template || template.isSystem || template.userId !== user.profile.id) {
+    if (!template || template.isSystem) {
       notFound();
     }
 

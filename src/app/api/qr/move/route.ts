@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, inArray, isNull } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { qrCodes } from '@/lib/db/schema';
@@ -23,16 +23,16 @@ export async function POST(request: Request): Promise<Response> {
 
   const { ids, folderId } = parsed.data;
 
-  const folder = folderId ? await getOwnedFolder(folderId, user.profile.id) : null;
+  const folder = folderId ? await getOwnedFolder(folderId) : null;
   if (folderId && !folder) {
     return Response.json({ error: 'Folder not found', code: 'FOLDER_NOT_FOUND' }, { status: 404 });
   }
 
   const moved = await db
     .update(qrCodes)
-    .set({ folderId, updatedAt: new Date() })
+    .set({ folderId, updatedAt: new Date(), updatedBy: user.profile.id })
     .where(
-      and(inArray(qrCodes.id, ids), eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt)),
+      and(inArray(qrCodes.id, ids), isNull(qrCodes.deletedAt)),
     )
     .returning({ id: qrCodes.id });
 

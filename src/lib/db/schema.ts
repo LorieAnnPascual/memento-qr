@@ -102,6 +102,11 @@ export const qrCodes = pgTable(
     // Metadata
     tags: text('tags').array(),
     notes: text('notes'),
+    // Team workflow: who last changed it, who it is handed to, and what is next.
+    updatedBy: uuid('updated_by').references(() => userProfiles.id, { onDelete: 'set null' }),
+    assignedTo: uuid('assigned_to').references(() => userProfiles.id, { onDelete: 'set null' }),
+    nextAction: text('next_action'),
+    checklist: jsonb('checklist'), // ChecklistItem[] (see src/lib/workflow/checklist.ts)
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -111,6 +116,7 @@ export const qrCodes = pgTable(
     index('idx_qr_codes_short_code').on(table.shortCode),
     index('idx_qr_codes_qr_type').on(table.qrType),
     index('idx_qr_codes_folder_id').on(table.folderId),
+    index('idx_qr_codes_assigned_to').on(table.assignedTo),
     // The QR list: one user's codes, newest first.
     index('idx_qr_codes_user_created').on(table.userId, table.createdAt),
   ],
@@ -138,12 +144,20 @@ export const pageTemplates = pgTable(
     publishedAt: timestamp('published_at', { withTimezone: true }),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
 
+    // Team workflow (same fields as QR codes).
+    notes: text('notes'),
+    updatedBy: uuid('updated_by').references(() => userProfiles.id, { onDelete: 'set null' }),
+    assignedTo: uuid('assigned_to').references(() => userProfiles.id, { onDelete: 'set null' }),
+    nextAction: text('next_action'),
+    checklist: jsonb('checklist'),
+
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index('idx_page_templates_category').on(table.category),
     index('idx_page_templates_short_code').on(table.shortCode),
+    index('idx_page_templates_assigned_to').on(table.assignedTo),
   ],
 );
 

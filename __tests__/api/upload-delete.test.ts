@@ -32,7 +32,7 @@ describe('DELETE /api/upload/[id]', () => {
     expect((await del()).status).toBe(401);
   });
 
-  it('404s for a file that is not yours (or does not exist)', async () => {
+  it('404s for a file that does not exist', async () => {
     dbMock.select.mockReturnValue(chainable([]));
 
     expect((await del()).status).toBe(404);
@@ -47,7 +47,7 @@ describe('DELETE /api/upload/[id]', () => {
 
     expect(response.status).toBe(204);
     expect(deleteFileMock).toHaveBeenCalledWith('profile-1/a.png');
-    expect(clearMock).toHaveBeenCalledWith('https://s.example/a.png', 'profile-1');
+    expect(clearMock).toHaveBeenCalledWith('https://s.example/a.png');
     expect(dbMock.delete).toHaveBeenCalledTimes(1);
   });
 

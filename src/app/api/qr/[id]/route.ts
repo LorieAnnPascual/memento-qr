@@ -22,7 +22,7 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
   const [qrCode] = await db
     .select()
     .from(qrCodes)
-    .where(and(eq(qrCodes.id, id), eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt)))
+    .where(and(eq(qrCodes.id, id), isNull(qrCodes.deletedAt)))
     .limit(1);
 
   if (!qrCode) {
@@ -54,7 +54,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
   const [existing] = await db
     .select()
     .from(qrCodes)
-    .where(and(eq(qrCodes.id, id), eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt)))
+    .where(and(eq(qrCodes.id, id), isNull(qrCodes.deletedAt)))
     .limit(1);
 
   if (!existing) {
@@ -63,7 +63,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
 
   const data = parsed.data;
 
-  if (data.folderId && !(await getOwnedFolder(data.folderId, user.profile.id))) {
+  if (data.folderId && !(await getOwnedFolder(data.folderId))) {
     return Response.json({ error: 'Folder not found', code: 'FOLDER_NOT_FOUND' }, { status: 404 });
   }
 
@@ -103,6 +103,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
       ...(data.notes !== undefined && { notes: data.notes }),
       ...(data.folderId !== undefined && { folderId: data.folderId }),
       updatedAt: new Date(),
+      updatedBy: user.profile.id,
     })
     .where(eq(qrCodes.id, id))
     .returning();
@@ -133,7 +134,7 @@ export async function DELETE(_request: Request, { params }: RouteContext): Promi
   const [existing] = await db
     .select({ id: qrCodes.id, name: qrCodes.name })
     .from(qrCodes)
-    .where(and(eq(qrCodes.id, id), eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt)))
+    .where(and(eq(qrCodes.id, id), isNull(qrCodes.deletedAt)))
     .limit(1);
 
   if (!existing) {

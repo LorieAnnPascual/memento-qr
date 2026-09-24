@@ -10,8 +10,10 @@ import { getQRTypeLabel, type QRType } from '@/types/qr';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { QRPreview } from '@/components/qr/qr-preview';
+import { checklistProgress, normalizeChecklist } from '@/lib/workflow/checklist';
 
 const RECENT_LIMIT = 5;
+const ASSIGNED_LIMIT = 10;
 
 export default async function DashboardHomePage() {
   const user = await getCurrentUser();
@@ -20,16 +22,15 @@ export default async function DashboardHomePage() {
     redirect('/login');
   }
 
-  const where = and(eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt));
-  const templatesWhere = and(eq(qrTemplates.userId, user.profile.id), eq(qrTemplates.isSystem, false));
+  const where = isNull(qrCodes.deletedAt);
+  const templatesWhere = eq(qrTemplates.isSystem, false);
 
   const livePagesWhere = and(
-    eq(pageTemplates.userId, user.profile.id),
     eq(pageTemplates.isPublished, true),
     or(isNull(pageTemplates.expiresAt), gt(pageTemplates.expiresAt, new Date())),
   );
 
-  const [[{ total }], [{ totalScans }], recent, recentTemplates, [{ livePages }]] = await Promise.all([
+  const [[{ total }], [{ totalScans }], recent, recentTemplates, [{ livePages }], assignedQr, assignedPages] = await Promise.all([
     db.select({ total: count() }).from(qrCodes).where(where),
     db.select({ totalScans: sum(qrCodes.scanCount) }).from(qrCodes).where(where),
     db.select().from(qrCodes).where(where).orderBy(desc(qrCodes.createdAt)).limit(RECENT_LIMIT),
@@ -40,13 +41,31 @@ export default async function DashboardHomePage() {
       .orderBy(desc(qrTemplates.createdAt))
       .limit(RECENT_LIMIT),
     db.select({ livePages: count() }).from(pageTemplates).where(livePagesWhere),
+    // What has been handed to the signed-in person.
+    db
+      .select()
+      .from(qrCodes)
+      .where(and(isNull(qrCodes.deletedAt), eq(qrCodes.assignedTo, user.profile.id)))
+      .orderBy(desc(qrCodes.updatedAt))
+      .limit(ASSIGNED_LIMIT),
+    db
+      .select()
+      .from(pageTemplates)
+      .where(and(eq(pageTemplates.isSystem, false), eq(pageTemplates.assignedTo, user.profile.id)))
+      .orderBy(desc(pageTemplates.updatedAt))
+      .limit(ASSIGNED_LIMIT),
   ]);
+
+  const assigned = [
+    ...assignedQr.map((item) => ({ kind: 'QR code', href: `/qr/${item.id}`, name: item.name, nextAction: item.nextAction, checklist: item.checklist, updatedAt: item.updatedAt })),
+    ...assignedPages.map((item) => ({ kind: 'Page', href: `/pages/${item.id}`, name: item.name, nextAction: item.nextAction, checklist: item.checklist, updatedAt: item.updatedAt })),
+  ].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Overview of your QR codes and pages.</p>
+        <p className="text-muted-foreground">Overview of the team&apos;s QR codes and pages.</p>
       </div>
 
       <Card>
@@ -61,6 +80,38 @@ export default async function DashboardHomePage() {
             <Link href="/settings?tab=guide">Open the user guide</Link>
           </Button>
         </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Assigned to you</CardTitle>
+          <CardDescription>QR codes and pages a teammate handed to you.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {assigned.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nothing is assigned to you right now.</p>
+          ) : (
+            <ul className="divide-y">
+              {assigned.map((item) => {
+                const progress = checklistProgress(normalizeChecklist(item.checklist));
+                return (
+                  <li key={item.href} className="py-2 first:pt-0 last:pb-0">
+                    <Link href={item.href} className="font-medium hover:underline">
+                      {item.name}
+                    </Link>
+                    <span className="ml-2 text-sm text-muted-foreground">{item.kind}</span>
+                    {item.nextAction && <p className="text-sm text-muted-foreground">Next: {item.nextAction}</p>}
+                    {progress.total > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Checklist {progress.done}/{progress.total}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -101,7 +152,7 @@ export default async function DashboardHomePage() {
         <CardHeader className="flex items-center justify-between">
           <div>
             <CardTitle>Recent QR codes</CardTitle>
-            <CardDescription>Your most recently saved codes.</CardDescription>
+            <CardDescription>The team&apos;s most recently saved codes.</CardDescription>
           </div>
           {total > 0 && (
             <Button asChild variant="outline" size="sm">

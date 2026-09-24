@@ -37,7 +37,6 @@ export async function GET(request: Request): Promise<Response> {
   const format = searchParams.get('format');
 
   const filters = {
-    userId: user.profile.id,
     qrId,
     from: from ? new Date(from) : undefined,
     to: to ? new Date(to) : undefined,

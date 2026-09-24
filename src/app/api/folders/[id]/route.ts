@@ -17,7 +17,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
   }
 
   const { id } = await params;
-  const folder = await getOwnedFolder(id, user.profile.id);
+  const folder = await getOwnedFolder(id);
 
   if (!folder) {
     return Response.json({ error: 'Folder not found', code: 'FOLDER_NOT_FOUND' }, { status: 404 });
@@ -36,7 +36,7 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
     .select({ id: folders.id })
     .from(folders)
     .where(
-      and(eq(folders.userId, user.profile.id), ilike(folders.name, parsed.data.name), ne(folders.id, id)),
+      and(ilike(folders.name, parsed.data.name), ne(folders.id, id)),
     )
     .limit(1);
 
@@ -74,7 +74,7 @@ export async function DELETE(_request: Request, { params }: RouteContext): Promi
   }
 
   const { id } = await params;
-  const folder = await getOwnedFolder(id, user.profile.id);
+  const folder = await getOwnedFolder(id);
 
   if (!folder) {
     return Response.json({ error: 'Folder not found', code: 'FOLDER_NOT_FOUND' }, { status: 404 });

@@ -24,7 +24,6 @@ export default async function NewQRCodePage({ searchParams }: PageProps<'/qr/new
     ? await db
         .select({ id: folders.id, name: folders.name })
         .from(folders)
-        .where(eq(folders.userId, user.profile.id))
         .orderBy(asc(folders.name))
     : [];
 

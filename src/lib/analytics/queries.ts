@@ -4,7 +4,6 @@ import { db } from '@/lib/db';
 import { qrCodes, scanEvents } from '@/lib/db/schema';
 
 export interface AnalyticsFilters {
-  userId: string;
   qrId?: string;
   from?: Date;
   to?: Date;
@@ -37,7 +36,7 @@ const RECENT_SCANS_LIMIT = 50;
 const TOP_LIST_LIMIT = 10;
 
 function buildWhere(filters: AnalyticsFilters): SQL {
-  const conditions = [eq(qrCodes.userId, filters.userId), isNull(qrCodes.deletedAt)];
+  const conditions = [isNull(qrCodes.deletedAt)];
   if (filters.qrId) conditions.push(eq(qrCodes.id, filters.qrId));
   if (filters.from) conditions.push(gte(scanEvents.scannedAt, filters.from));
   if (filters.to) conditions.push(lte(scanEvents.scannedAt, filters.to));

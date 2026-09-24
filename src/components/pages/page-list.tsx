@@ -6,11 +6,14 @@ import { useRouter } from 'next/navigation';
 
 import { toast } from 'sonner';
 import type { Data } from '@puckeditor/core';
-import { Copy, CopyPlus, Download, ExternalLink, FilePlus, Pencil, Trash2 } from 'lucide-react';
+import { Copy, CopyPlus, Download, ExternalLink, FilePlus, Pencil, Trash2, UserRoundCheck } from 'lucide-react';
 
 import type { PageTemplate } from '@/lib/db/schema';
 import { downloadPageHtml } from '@/lib/pages/download-html';
 import { toPublishStatus } from '@/lib/pages/page-status';
+import type { TeamMember } from '@/lib/team/members';
+import { checklistProgress, normalizeChecklist } from '@/lib/workflow/checklist';
+import { WorkflowDialog, type WorkflowFields } from '@/components/workflow/workflow-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -27,14 +30,18 @@ export function PublishStatusBadge({ page }: { page: PageTemplate }) {
 
 interface PageListProps {
   initialItems: PageTemplate[];
+  members: TeamMember[];
 }
 
-export function PageList({ initialItems }: PageListProps) {
+export function PageList({ initialItems, members }: PageListProps) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [pendingDelete, setPendingDelete] = useState<PageTemplate | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [workflowTarget, setWorkflowTarget] = useState<PageTemplate | null>(null);
+
+  const memberName = (id: string | null): string | null => (id ? (members.find((m) => m.id === id)?.name ?? null) : null);
 
   async function handleCopy(url: string): Promise<void> {
     try {
@@ -72,7 +79,7 @@ export function PageList({ initialItems }: PageListProps) {
 
       const created = (await response.json()) as PageTemplate;
       setItems((prev) => [created, ...prev]);
-      toast.success(`Duplicated "${page.name}" as a private, unpublished copy`);
+      toast.success(`Duplicated "${page.name}" as an unpublished copy`);
       router.refresh();
     } catch (error) {
       toast.error('Failed to duplicate the page. Please try again.');
@@ -128,8 +135,9 @@ export function PageList({ initialItems }: PageListProps) {
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Team</TableHead>
                 <TableHead>Updated</TableHead>
-                <TableHead className="w-44 text-right">Actions</TableHead>
+                <TableHead className="w-48 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -145,6 +153,34 @@ export function PageList({ initialItems }: PageListProps) {
                     <TableCell className="text-muted-foreground capitalize">{item.category}</TableCell>
                     <TableCell>
                       <PublishStatusBadge page={item} />
+                    </TableCell>
+                    <TableCell className="max-w-56 text-sm">
+                      {memberName(item.assignedTo) ? (
+                        <Badge variant="outline" className="font-normal">
+                          Assigned to {memberName(item.assignedTo)}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">Unassigned</span>
+                      )}
+                      {item.nextAction && (
+                        <p className="mt-1 truncate text-muted-foreground" title={item.nextAction}>
+                          Next: {item.nextAction}
+                        </p>
+                      )}
+                      {(() => {
+                        const progress = checklistProgress(normalizeChecklist(item.checklist));
+                        return progress.total > 0 ? (
+                          <p className="text-muted-foreground">
+                            Checklist {progress.done}/{progress.total}
+                          </p>
+                        ) : null;
+                      })()}
+                      <p className="text-xs text-muted-foreground">
+                        By {memberName(item.userId) ?? 'a teammate'}
+                        {item.updatedBy && item.updatedBy !== item.userId
+                          ? `, edited by ${memberName(item.updatedBy) ?? 'a teammate'}`
+                          : ''}
+                      </p>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(item.updatedAt).toLocaleDateString()}
@@ -191,6 +227,15 @@ export function PageList({ initialItems }: PageListProps) {
                         >
                           <CopyPlus className="size-4" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Handoff and checklist for ${item.name}`}
+                          title="Handoff & checklist"
+                          onClick={() => setWorkflowTarget(item)}
+                        >
+                          <UserRoundCheck className="size-4" />
+                        </Button>
                         <Button asChild variant="ghost" size="icon-sm">
                           <Link href={`/pages/${item.id}`} aria-label={`Edit ${item.name}`}>
                             <Pencil className="size-4" />
@@ -212,6 +257,22 @@ export function PageList({ initialItems }: PageListProps) {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {workflowTarget && (
+        <WorkflowDialog
+          key={workflowTarget.id}
+          kind="page"
+          itemId={workflowTarget.id}
+          itemName={workflowTarget.name}
+          value={workflowTarget}
+          members={members}
+          open
+          onOpenChange={(open) => !open && setWorkflowTarget(null)}
+          onSaved={(next: WorkflowFields) =>
+            setItems((prev) => prev.map((item) => (item.id === workflowTarget.id ? { ...item, ...next } : item)))
+          }
+        />
       )}
 
       <ConfirmDialog

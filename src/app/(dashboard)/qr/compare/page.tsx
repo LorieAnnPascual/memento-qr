@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, inArray, isNull } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { qrCodes, type QRCode } from '@/lib/db/schema';
@@ -40,7 +40,7 @@ export default async function CompareQRPage({ searchParams }: PageProps<'/qr/com
   const bId = typeof params.b === 'string' && UUID.test(params.b) ? params.b : undefined;
   const days = parseCompareDays(typeof params.days === 'string' ? params.days : undefined);
 
-  const own = and(eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt));
+  const own = isNull(qrCodes.deletedAt);
 
   const options = await db
     .select({ id: qrCodes.id, name: qrCodes.name })
@@ -62,8 +62,8 @@ export default async function CompareQRPage({ searchParams }: PageProps<'/qr/com
     if (qrA && qrB) {
       const from = rangeStart(days);
       const [summaryA, summaryB] = await Promise.all([
-        getAnalyticsSummary({ userId: user.profile.id, qrId: aId, from }),
-        getAnalyticsSummary({ userId: user.profile.id, qrId: bId, from }),
+        getAnalyticsSummary({ qrId: aId, from }),
+        getAnalyticsSummary({ qrId: bId, from }),
       ]);
 
       comparison = {

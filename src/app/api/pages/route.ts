@@ -1,4 +1,4 @@
-import { and, desc, eq, or } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { pageTemplates } from '@/lib/db/schema';
@@ -15,8 +15,8 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const category = new URL(request.url).searchParams.get('category');
-  const own = eq(pageTemplates.userId, user.profile.id);
-  const where = category ? and(own, eq(pageTemplates.category, category)) : own;
+  const teamPages = eq(pageTemplates.isSystem, false);
+  const where = category ? and(teamPages, eq(pageTemplates.category, category)) : teamPages;
 
   const items = await db.select().from(pageTemplates).where(where).orderBy(desc(pageTemplates.updatedAt));
 
@@ -48,12 +48,7 @@ export async function POST(request: Request): Promise<Response> {
     const [source] = await db
       .select()
       .from(pageTemplates)
-      .where(
-        and(
-          eq(pageTemplates.id, data.fromTemplateId),
-          or(eq(pageTemplates.isPublic, true), eq(pageTemplates.userId, user.profile.id)),
-        ),
-      )
+      .where(eq(pageTemplates.id, data.fromTemplateId))
       .limit(1);
 
     if (!source) {

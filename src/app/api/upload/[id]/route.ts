@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { uploadedFiles } from '@/lib/db/schema';
@@ -20,7 +20,7 @@ export async function DELETE(_request: Request, { params }: RouteContext): Promi
   const [existing] = await db
     .select()
     .from(uploadedFiles)
-    .where(and(eq(uploadedFiles.id, id), eq(uploadedFiles.userId, user.profile.id)))
+    .where(eq(uploadedFiles.id, id))
     .limit(1);
 
   if (!existing) {
@@ -34,7 +34,7 @@ export async function DELETE(_request: Request, { params }: RouteContext): Promi
     return Response.json({ error: 'Failed to delete file', code: 'DELETE_FAILED' }, { status: 500 });
   }
 
-  await clearMediaReferences(existing.publicUrl, user.profile.id);
+  await clearMediaReferences(existing.publicUrl);
   await db.delete(uploadedFiles).where(eq(uploadedFiles.id, id));
 
   return new Response(null, { status: 204 });

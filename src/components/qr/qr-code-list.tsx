@@ -4,11 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 import { toast } from 'sonner';
-import { Copy, FileSpreadsheet, FolderCog, GitCompareArrows, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Copy, FileSpreadsheet, FolderCog, GitCompareArrows, HeartPulse, Pencil, Plus, Search, Trash2, UserRoundCheck } from 'lucide-react';
 
 import type { QRCode } from '@/lib/db/schema';
 import type { QRStyleConfig } from '@/lib/qr/generator';
 import { getQRTypeLabel, QR_TYPES, type QRType } from '@/types/qr';
+import type { TeamMember } from '@/lib/team/members';
+import { checklistProgress, normalizeChecklist } from '@/lib/workflow/checklist';
+import { WorkflowDialog, type WorkflowFields } from '@/components/workflow/workflow-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +42,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useDebounce } from '@/hooks/use-debounce';
 import { FolderManager, type FolderItem } from './folder-manager';
+import { QrCheckDialog } from './qr-check-dialog';
 import { QRPreview } from './qr-preview';
 
 interface QRCodeListProps {
@@ -46,6 +50,9 @@ interface QRCodeListProps {
   initialTotal: number;
   pageSize: number;
   initialFolders: FolderItem[];
+  members: TeamMember[];
+  /** Open already filtered to this folder (from a search result). */
+  initialFolder?: string;
 }
 
 interface ListResponse {
@@ -55,8 +62,9 @@ interface ListResponse {
 
 const ALL_FOLDERS = 'all';
 const NO_FOLDER = 'none';
+const ANYONE = 'all';
 
-export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolders }: QRCodeListProps) {
+export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolders, members, initialFolder }: QRCodeListProps) {
   const [items, setItems] = useState(initialItems);
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(1);
@@ -67,7 +75,7 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
   const [isDeleting, setIsDeleting] = useState(false);
   const hasFetchedOnce = useRef(false);
   const [folders, setFolders] = useState(initialFolders);
-  const [folderFilter, setFolderFilter] = useState(ALL_FOLDERS);
+  const [folderFilter, setFolderFilter] = useState(initialFolder ?? ALL_FOLDERS);
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moveTarget, setMoveTarget] = useState(NO_FOLDER);
@@ -75,6 +83,11 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   // Bumped to re-run the list fetch after a change made elsewhere on the page.
   const [reloadKey, setReloadKey] = useState(0);
+  const [assignedFilter, setAssignedFilter] = useState(ANYONE);
+  const [checkTarget, setCheckTarget] = useState<QRCode | null>(null);
+  const [workflowTarget, setWorkflowTarget] = useState<QRCode | null>(null);
+
+  const memberName = (id: string | null): string | null => (id ? (members.find((m) => m.id === id)?.name ?? null) : null);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -98,6 +111,7 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
     if (debouncedSearch) params.set('search', debouncedSearch);
     if (typeFilter !== 'all') params.set('type', typeFilter);
     if (folderFilter !== ALL_FOLDERS) params.set('folder', folderFilter);
+    if (assignedFilter !== ANYONE) params.set('assigned', assignedFilter);
 
     fetch(`/api/qr?${params.toString()}`, { signal: controller.signal })
       .then((res) => res.json() as Promise<ListResponse>)
@@ -119,7 +133,7 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
       ignore = true;
       controller.abort();
     };
-  }, [page, debouncedSearch, typeFilter, folderFilter, reloadKey, pageSize]);
+  }, [page, debouncedSearch, typeFilter, folderFilter, assignedFilter, reloadKey, pageSize]);
 
   function handleSearchChange(next: string): void {
     setSearch(next);
@@ -135,6 +149,18 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
     setFolderFilter(next);
     setPage(1);
     setSelected(new Set());
+  }
+
+  function handleAssignedFilterChange(next: string): void {
+    setAssignedFilter(next);
+    setPage(1);
+    setSelected(new Set());
+  }
+
+  function handleWorkflowSaved(id: string, next: WorkflowFields): void {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...next } : item)));
+    // Filtered by assignee? The item may no longer belong in this view.
+    if (assignedFilter !== ANYONE) setReloadKey((key) => key + 1);
   }
 
   function handleFoldersChange(next: FolderItem[]): void {
@@ -267,6 +293,21 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
               ))}
             </SelectContent>
           </Select>
+          <Select value={assignedFilter} onValueChange={handleAssignedFilterChange}>
+            <SelectTrigger className="w-full sm:w-48" aria-label="Assigned to filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ANYONE}>Anyone</SelectItem>
+              <SelectItem value="me">Assigned to me</SelectItem>
+              <SelectItem value="none">Unassigned</SelectItem>
+              {members.map((member) => (
+                <SelectItem key={member.id} value={member.id}>
+                  {member.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => setFolderDialogOpen(true)}>
@@ -355,8 +396,9 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Scans</TableHead>
+                <TableHead>Team</TableHead>
                 <TableHead>Created</TableHead>
-                <TableHead className="w-32 text-right">Actions</TableHead>
+                <TableHead className="w-44 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -410,11 +452,49 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
                       '—'
                     )}
                   </TableCell>
+                  <TableCell className="max-w-56 text-sm">
+                    {memberName(item.assignedTo) ? (
+                      <Badge variant="outline" className="font-normal">
+                        Assigned to {memberName(item.assignedTo)}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">Unassigned</span>
+                    )}
+                    {item.nextAction && <p className="mt-1 truncate text-muted-foreground" title={item.nextAction}>Next: {item.nextAction}</p>}
+                    {(() => {
+                      const progress = checklistProgress(normalizeChecklist(item.checklist));
+                      return progress.total > 0 ? (
+                        <p className="text-muted-foreground">Checklist {progress.done}/{progress.total}</p>
+                      ) : null;
+                    })()}
+                    <p className="text-xs text-muted-foreground">
+                      By {memberName(item.userId) ?? 'a teammate'}
+                      {item.updatedBy && item.updatedBy !== item.userId ? `, edited by ${memberName(item.updatedBy) ?? 'a teammate'}` : ''}
+                    </p>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {new Date(item.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Check that ${item.name} is working`}
+                        title="Is it working?"
+                        onClick={() => setCheckTarget(item)}
+                      >
+                        <HeartPulse className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Handoff and checklist for ${item.name}`}
+                        title="Handoff & checklist"
+                        onClick={() => setWorkflowTarget(item)}
+                      >
+                        <UserRoundCheck className="size-4" />
+                      </Button>
                       <Button asChild variant="ghost" size="icon-sm">
                         <Link href={`/qr/${item.id}`} aria-label={`Edit ${item.name}`}>
                           <Pencil className="size-4" />
@@ -480,12 +560,28 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
         onFoldersChange={handleFoldersChange}
       />
 
+      <QrCheckDialog qrId={checkTarget?.id ?? null} qrName={checkTarget?.name ?? ''} onOpenChange={(open) => !open && setCheckTarget(null)} />
+
+      {workflowTarget && (
+        <WorkflowDialog
+          key={workflowTarget.id}
+          kind="qr"
+          itemId={workflowTarget.id}
+          itemName={workflowTarget.name}
+          value={workflowTarget}
+          members={members}
+          open
+          onOpenChange={(open) => !open && setWorkflowTarget(null)}
+          onSaved={(next) => handleWorkflowSaved(workflowTarget.id, next)}
+        />
+      )}
+
       <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this QR code?</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingDelete?.name} will be removed from your list. This can&apos;t be undone.
+              {pendingDelete?.name} will be removed for the whole team. This can&apos;t be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

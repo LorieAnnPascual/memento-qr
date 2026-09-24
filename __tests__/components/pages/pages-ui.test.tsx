@@ -42,6 +42,11 @@ function makePage(overrides: Partial<PageTemplate> = {}): PageTemplate {
     shortCode: null,
     publishedAt: null,
     expiresAt: null,
+    notes: null,
+    updatedBy: null,
+    assignedTo: null,
+    nextAction: null,
+    checklist: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -59,7 +64,7 @@ beforeEach(() => {
 
 describe('PageList', () => {
   it('shows an empty state with a call to action', () => {
-    render(<PageList initialItems={[]} />);
+    render(<PageList initialItems={[]} members={[]} />);
     expect(screen.getByText('No pages yet.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Create your first page' })).toHaveAttribute('href', '/pages/new');
   });
@@ -79,6 +84,7 @@ describe('PageList', () => {
             expiresAt: new Date(Date.now() - HOUR),
           }),
         ]}
+        members={[]}
       />,
     );
 
@@ -95,6 +101,7 @@ describe('PageList', () => {
           makePage({ id: 'a', name: 'Draft page' }),
           makePage({ id: 'b', name: 'Live page', isPublished: true, shortCode: 'live12' }),
         ]}
+        members={[]}
       />,
     );
 
@@ -104,7 +111,7 @@ describe('PageList', () => {
 
   it('asks for confirmation before deleting, then removes the row', async () => {
     const user = userEvent.setup();
-    render(<PageList initialItems={[makePage({ name: 'Menu' })]} />);
+    render(<PageList initialItems={[makePage({ name: 'Menu' })]} members={[]} />);
 
     await user.click(screen.getByLabelText('Delete Menu'));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -118,7 +125,7 @@ describe('PageList', () => {
 
   it('warns that deleting a live page takes its link offline', async () => {
     const user = userEvent.setup();
-    render(<PageList initialItems={[makePage({ isPublished: true, shortCode: 'live12' })]} />);
+    render(<PageList initialItems={[makePage({ isPublished: true, shortCode: 'live12' })]} members={[]} />);
 
     await user.click(screen.getByLabelText('Delete Menu'));
     expect(await screen.findByText(/takes its public link offline/)).toBeInTheDocument();

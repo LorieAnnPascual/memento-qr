@@ -17,7 +17,7 @@ export default async function EditPagePage({ params }: PageProps<'/pages/[id]'>)
   const [page] = await db.select().from(pageTemplates).where(eq(pageTemplates.id, id)).limit(1);
 
   // System templates can't be edited in place; they're copied from /pages/new.
-  if (!page || page.isSystem || page.userId !== user.profile.id) {
+  if (!page || page.isSystem) {
     notFound();
   }
 

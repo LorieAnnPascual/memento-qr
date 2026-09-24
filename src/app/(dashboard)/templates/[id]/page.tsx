@@ -16,7 +16,7 @@ export default async function EditTemplatePage({ params }: PageProps<'/templates
 
   const [template] = await db.select().from(qrTemplates).where(eq(qrTemplates.id, id)).limit(1);
 
-  if (!template || template.isSystem || template.userId !== user.profile.id) {
+  if (!template || template.isSystem) {
     notFound();
   }
 

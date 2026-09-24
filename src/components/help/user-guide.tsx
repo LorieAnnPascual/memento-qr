@@ -101,6 +101,16 @@ const SECTIONS: GuideSection[] = [
     link: { href: '/media', label: 'Open Media' },
   },
   {
+    id: 'team',
+    title: 'Working together',
+    steps: [
+      'Everything is shared: QR codes, pages, folders, media and analytics are visible to and editable by the whole team. Each item remembers who created it and who edited it last.',
+      'Handoff: on the QR Codes or Pages list, click the person icon to assign an item to a teammate, write the next action and an internal note, and tick off an optional checklist. Things assigned to you show on the dashboard.',
+      'Is it working? Click the heart-pulse icon on a QR code to see whether a scan would work right now (paused, expired, scan limit) and whether its destination page answers. This never counts as a scan.',
+      'Search: the box at the top searches QR codes, pages, folders and templates, including notes and next actions.',
+    ],
+  },
+  {
     id: 'organize',
     title: 'Stay organized',
     steps: [
@@ -115,7 +125,7 @@ const SECTIONS: GuideSection[] = [
     title: 'Your account and data',
     steps: [
       'Settings → Appearance switches between light and dark mode.',
-      'Settings → Your data downloads a JSON backup of your codes, templates and pages.',
+      'Settings → Your data downloads a JSON backup of the codes, templates and pages you created.',
       'Forgot your password? On the sign-in page click "Forgot password?", enter your email and follow the link in the reset email (check spam). If no email arrives after a few minutes, wait a bit and try again, or ask an admin.',
     ],
   },

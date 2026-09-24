@@ -21,12 +21,12 @@ export default async function AnalyticsPage() {
   from.setDate(from.getDate() - DEFAULT_RANGE_DAYS);
 
   const [summary, qrOptions] = await Promise.all([
-    getAnalyticsSummary({ userId: user.profile.id, from }),
+    getAnalyticsSummary({ from }),
     db
       .select({ id: qrCodes.id, name: qrCodes.name })
       .from(qrCodes)
       .where(
-        and(eq(qrCodes.userId, user.profile.id), eq(qrCodes.isDynamic, true), isNull(qrCodes.deletedAt)),
+        and(eq(qrCodes.isDynamic, true), isNull(qrCodes.deletedAt)),
       )
       .orderBy(asc(qrCodes.name)),
   ]);

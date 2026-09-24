@@ -20,7 +20,7 @@ export default async function EditQRCodePage({ params }: PageProps<'/qr/[id]'>) 
   const [qrCode] = await db
     .select()
     .from(qrCodes)
-    .where(and(eq(qrCodes.id, id), eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt)))
+    .where(and(eq(qrCodes.id, id), isNull(qrCodes.deletedAt)))
     .limit(1);
 
   if (!qrCode) {
@@ -30,7 +30,6 @@ export default async function EditQRCodePage({ params }: PageProps<'/qr/[id]'>) 
   const userFolders = await db
     .select({ id: folders.id, name: folders.name })
     .from(folders)
-    .where(eq(folders.userId, user.profile.id))
     .orderBy(asc(folders.name));
 
   return (

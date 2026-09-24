@@ -25,7 +25,7 @@ export async function POST(_request: Request, { params }: RouteContext): Promise
   const [source] = await db
     .select()
     .from(qrCodes)
-    .where(and(eq(qrCodes.id, id), eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt)))
+    .where(and(eq(qrCodes.id, id), isNull(qrCodes.deletedAt)))
     .limit(1);
 
   if (!source) {

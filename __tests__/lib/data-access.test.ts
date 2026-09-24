@@ -31,7 +31,7 @@ describe('getAnalyticsSummary', () => {
   it('assembles every section from its own query', async () => {
     stubSelects();
 
-    const summary = await getAnalyticsSummary({ userId: 'u1' });
+    const summary = await getAnalyticsSummary({});
 
     expect(summary.totalScans).toBe(12);
     expect(summary.uniqueVisitors).toBe(5);
@@ -48,7 +48,7 @@ describe('getAnalyticsSummary', () => {
   it('returns zeros and empty lists when there are no scans', async () => {
     stubSelects({ totals: [], daily: [], devices: [], browsers: [], countries: [], cities: [], topQr: [], recent: [] });
 
-    const summary = await getAnalyticsSummary({ userId: 'u1', from: new Date('2026-01-01'), to: new Date('2026-02-01'), qrId: 'q1' });
+    const summary = await getAnalyticsSummary({ from: new Date('2026-01-01'), to: new Date('2026-02-01'), qrId: 'q1' });
 
     expect(summary).toMatchObject({
       totalScans: 0,
@@ -67,7 +67,7 @@ describe('getScanEventsForExport', () => {
     const rows = [{ scannedAt: new Date(), qrCodeName: 'Menu', deviceType: 'mobile' }];
     dbMock.select.mockReturnValueOnce(chainable(rows));
 
-    expect(await getScanEventsForExport({ userId: 'u1', qrId: 'q1', from: new Date(), to: new Date() })).toEqual(rows);
+    expect(await getScanEventsForExport({ qrId: 'q1', from: new Date(), to: new Date() })).toEqual(rows);
   });
 });
 

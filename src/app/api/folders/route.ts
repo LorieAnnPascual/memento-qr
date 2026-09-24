@@ -17,7 +17,6 @@ export async function GET(): Promise<Response> {
     .select({ id: folders.id, name: folders.name, createdAt: folders.createdAt, qrCount: count(qrCodes.id) })
     .from(folders)
     .leftJoin(qrCodes, and(eq(qrCodes.folderId, folders.id), isNull(qrCodes.deletedAt)))
-    .where(eq(folders.userId, user.profile.id))
     .groupBy(folders.id)
     .orderBy(asc(folders.name));
 
@@ -43,7 +42,7 @@ export async function POST(request: Request): Promise<Response> {
   const [duplicate] = await db
     .select({ id: folders.id })
     .from(folders)
-    .where(and(eq(folders.userId, user.profile.id), ilike(folders.name, parsed.data.name)))
+    .where(ilike(folders.name, parsed.data.name))
     .limit(1);
 
   if (duplicate) {

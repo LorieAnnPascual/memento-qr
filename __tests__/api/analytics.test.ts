@@ -67,7 +67,6 @@ describe('GET /api/analytics', () => {
     const body = await response.json();
     expect(body.totalScans).toBe(12);
     expect(getAnalyticsSummaryMock).toHaveBeenCalledWith({
-      userId: 'profile-1',
       qrId: undefined,
       from: undefined,
       to: undefined,

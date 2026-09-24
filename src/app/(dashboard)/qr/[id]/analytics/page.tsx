@@ -20,7 +20,7 @@ export default async function QRAnalyticsPage({ params }: PageProps<'/qr/[id]/an
   const [qrCode] = await db
     .select()
     .from(qrCodes)
-    .where(and(eq(qrCodes.id, id), eq(qrCodes.userId, user.profile.id), isNull(qrCodes.deletedAt)))
+    .where(and(eq(qrCodes.id, id), isNull(qrCodes.deletedAt)))
     .limit(1);
 
   if (!qrCode) {
@@ -30,7 +30,7 @@ export default async function QRAnalyticsPage({ params }: PageProps<'/qr/[id]/an
   const from = new Date();
   from.setDate(from.getDate() - DEFAULT_RANGE_DAYS);
 
-  const summary = await getAnalyticsSummary({ userId: user.profile.id, qrId: id, from });
+  const summary = await getAnalyticsSummary({ qrId: id, from });
 
   return (
     <div className="space-y-6">

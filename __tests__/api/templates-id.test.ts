@@ -35,11 +35,9 @@ describe('GET /api/templates/[id]', () => {
     expect(response.status).toBe(404);
   });
 
-  it("returns 404 for another user's private template", async () => {
+  it("returns 404 for a template that does not exist", async () => {
     getCurrentUserMock.mockResolvedValue(AUTHED_USER);
-    dbMock.select.mockReturnValue(
-      chainable([{ id: 'tpl-1', isPublic: false, userId: 'someone-else' }]),
-    );
+    dbMock.select.mockReturnValue(chainable([]));
     const { GET } = await import('@/app/api/templates/[id]/route');
 
     const response = await GET(new NextRequest('http://localhost:3000/api/templates/tpl-1'), { params });
@@ -103,10 +101,10 @@ describe('PUT /api/templates/[id]', () => {
     expect(response.status).toBe(403);
   });
 
-  it("returns 403 when editing another user's template", async () => {
+  it("returns 403 when editing a built-in template", async () => {
     getCurrentUserMock.mockResolvedValue(AUTHED_USER);
     dbMock.select.mockReturnValue(
-      chainable([{ id: 'tpl-1', isSystem: false, userId: 'someone-else' }]),
+      chainable([{ id: 'tpl-1', isSystem: true, userId: null }]),
     );
     const { PUT } = await import('@/app/api/templates/[id]/route');
 
