@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
  * and templates owned by the same user. Without this, deleting a file from
  * the Media library leaves dangling references — the saved design keeps
  * "showing" the logo/background until the URL 404s, and even then the field
- * is never cleared.
+ * is never cleared. Page builder designs owned by the user are cleared too.
  *
  * Drizzle's query builder has no jsonb key-removal helper, so this uses
  * Postgres's `-` operator directly. Each field is removed independently so a
@@ -35,6 +35,14 @@ export async function clearMediaReferences(publicUrl: string, userProfileId: str
       UPDATE qr_templates
       SET style_config = style_config - 'cardBackgroundImage', updated_at = now()
       WHERE user_id = ${userProfileId} AND style_config ->> 'cardBackgroundImage' = ${publicUrl}
+    `),
+    // Page builder designs keep image URLs at many depths (hero, gallery items,
+    // page background), so blank the URL wherever it appears; an empty image
+    // value renders as "no image".
+    db.execute(sql`
+      UPDATE page_templates
+      SET puck_data = replace(puck_data::text, to_jsonb(${publicUrl}::text)::text, '""')::jsonb, updated_at = now()
+      WHERE user_id = ${userProfileId} AND puck_data::text LIKE ${'%' + publicUrl + '%'}
     `),
   ]);
 }

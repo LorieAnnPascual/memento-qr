@@ -7,6 +7,7 @@ import type { CardElement, CardElementPatch, ShapeKind } from '@/lib/qr/card-bui
 import { CARD_FONTS, type CardFontKey } from '@/lib/qr/card-fonts';
 import type { QRStyleConfig } from '@/lib/qr/generator';
 import { useImageUpload } from '@/hooks/use-image-upload';
+import { MediaPickerButton } from '@/components/media/media-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -208,6 +209,7 @@ function ElementPanel({ element, onUpdate, onDelete, onReorder }: ElementPanelPr
           >
             {isUploading ? 'Uploading…' : 'Replace image'}
           </Button>
+          <MediaPickerButton onSelect={(url) => onUpdate({ url })} />
         </div>
       )}
 
@@ -273,6 +275,7 @@ function BackgroundPanel({ style, onChange }: BackgroundPanelProps) {
           >
             {isUploading ? 'Uploading…' : style.cardBackgroundImage ? 'Replace image' : 'Upload image'}
           </Button>
+          <MediaPickerButton onSelect={(url) => onChange({ ...style, cardBackgroundImage: url })} />
           {style.cardBackgroundImage && (
             <Button
               type="button"

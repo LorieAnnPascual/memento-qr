@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import { desc, eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { uploadedFiles } from '@/lib/db/schema';
@@ -8,6 +9,27 @@ import { EXTENSION_FOR_KIND, MIME_FOR_KIND, sniffImage } from '@/lib/upload/snif
 
 const MAX_FILE_BYTES = 500 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']);
+
+/** The signed-in user's uploaded images, newest first (for the "choose from media" picker). */
+export async function GET(): Promise<Response> {
+  const user = await getCurrentUser();
+
+  if (!user?.profile) {
+    return Response.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 });
+  }
+
+  try {
+    const files = await db
+      .select()
+      .from(uploadedFiles)
+      .where(eq(uploadedFiles.userId, user.profile.id))
+      .orderBy(desc(uploadedFiles.createdAt));
+    return Response.json({ files });
+  } catch (error) {
+    console.error('Media list error:', error);
+    return Response.json({ error: 'Failed to load media', code: 'LIST_FAILED' }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request): Promise<Response> {
   const user = await getCurrentUser();

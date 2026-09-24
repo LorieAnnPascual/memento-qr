@@ -17,6 +17,7 @@ import {
 import { DEFAULT_QR_STYLE, type QRStyleConfig } from '@/lib/qr/generator';
 import { TEMPLATE_CATEGORIES } from '@/lib/qr/schemas';
 import { useImageUpload } from '@/hooks/use-image-upload';
+import { MediaPickerButton } from '@/components/media/media-picker';
 import { useQRCode } from '@/hooks/use-qr-code';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -66,19 +67,21 @@ export function CardBuilder({ initialTemplate }: CardBuilderProps) {
   );
 
   const { isUploading: isUploadingImage, handleFileChange: handleImageFileChange } = useImageUpload({
-    onUploaded: (file) => {
-      addElement({
-        id: generateElementId(),
-        type: 'image',
-        x: design.width / 2 - 60,
-        y: design.height / 2 - 60,
-        width: 120,
-        height: 120,
-        zIndex: nextZIndex(),
-        url: file.publicUrl,
-      });
-    },
+    onUploaded: (file) => addImageElement(file.publicUrl),
   });
+
+  function addImageElement(url: string): void {
+    addElement({
+      id: generateElementId(),
+      type: 'image',
+      x: design.width / 2 - 60,
+      y: design.height / 2 - 60,
+      width: 120,
+      height: 120,
+      zIndex: nextZIndex(),
+      url,
+    });
+  }
 
   function nextZIndex(): number {
     return design.elements.length ? Math.max(...design.elements.map((el) => el.zIndex)) + 1 : 1;
@@ -251,6 +254,7 @@ export function CardBuilder({ initialTemplate }: CardBuilderProps) {
           <ImagePlus className="size-4" />
           {isUploadingImage ? 'Uploading…' : 'Upload graphic'}
         </Button>
+        <MediaPickerButton onSelect={(url) => addImageElement(url)} label="From media" />
 
         <div className="ml-auto flex items-center gap-2">
           <Label htmlFor="cb-orientation" className="text-sm text-muted-foreground">

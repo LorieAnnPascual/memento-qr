@@ -7,6 +7,7 @@ import { QrCode, RectangleHorizontal, RectangleVertical } from 'lucide-react';
 import type { QRCardLayout, QRStyleConfig } from '@/lib/qr/generator';
 import { CARD_FONTS, type CardFontKey } from '@/lib/qr/card-fonts';
 import { useImageUpload } from '@/hooks/use-image-upload';
+import { MediaPickerButton } from '@/components/media/media-picker';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
@@ -171,6 +172,7 @@ export function QRLayoutPicker({ value, onChange }: QRLayoutPickerProps) {
               >
                 {isUploading ? 'Uploading…' : value.cardBackgroundImage ? 'Replace image' : 'Upload image'}
               </Button>
+              <MediaPickerButton onSelect={(url) => patch({ cardBackgroundImage: url })} />
               {value.cardBackgroundImage && (
                 <Button
                   type="button"

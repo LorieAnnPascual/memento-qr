@@ -10,6 +10,7 @@ import type {
   QRStyleConfig,
 } from '@/lib/qr/generator';
 import { useImageUpload } from '@/hooks/use-image-upload';
+import { MediaPickerButton } from '@/components/media/media-picker';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Label } from '@/components/ui/label';
@@ -213,6 +214,8 @@ export function QRStyleEditor({ value, onChange }: QRStyleEditorProps) {
           >
             {isUploadingLogo ? 'Uploading…' : value.logoUrl ? 'Replace logo' : 'Upload logo'}
           </Button>
+          <MediaPickerButton onSelect={(url) => patch({ logoUrl: url })} />
+
           {value.logoUrl && (
             <Button type="button" variant="ghost" size="sm" onClick={() => setShowRemoveLogoConfirm(true)}>
               Remove

@@ -6,6 +6,8 @@ import { FieldLabel } from '@puckeditor/core';
 import { toast } from 'sonner';
 import { Trash2, Upload } from 'lucide-react';
 
+import { MediaPickerButton } from '@/components/media/media-picker';
+
 const UPLOAD_ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
 
 interface ImageFieldInputProps {
@@ -80,6 +82,7 @@ export function ImageFieldInput({ label, value, onChange, readOnly }: ImageField
           <Upload size={14} />
           {isUploading ? 'Uploading…' : 'Upload image'}
         </button>
+        <MediaPickerButton disabled={readOnly} onSelect={onChange} label="From media" />
         {value && (
           <button type="button" disabled={readOnly} onClick={() => onChange('')} style={buttonStyle}>
             <Trash2 size={14} />
