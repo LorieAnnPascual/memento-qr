@@ -69,6 +69,8 @@ export function describeActivity(entry: DescribableActivity): string {
       return `deleted the QR template ${name}`;
     case 'data.exported':
       return 'exported a backup of their data';
+    case 'data.imported':
+      return 'restored data from a backup';
     default: {
       const _exhaustive: never = action;
       // Old or unknown entries should still read sensibly.

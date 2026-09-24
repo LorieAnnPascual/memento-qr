@@ -19,6 +19,7 @@ export const ACTIVITY_ACTIONS = [
   'template.updated',
   'template.deleted',
   'data.exported',
+  'data.imported',
 ] as const;
 
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
