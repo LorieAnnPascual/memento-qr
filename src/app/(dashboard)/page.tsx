@@ -49,6 +49,20 @@ export default async function DashboardHomePage() {
         <p className="text-muted-foreground">Overview of your QR codes and pages.</p>
       </div>
 
+      <Card>
+        <CardHeader className="flex items-center justify-between gap-4">
+          <div>
+            <CardTitle>New to Memento QR?</CardTitle>
+            <CardDescription>
+              A short step-by-step guide to making QR codes, tracking scans and publishing pages.
+            </CardDescription>
+          </div>
+          <Button asChild size="sm">
+            <Link href="/settings?tab=guide">Open the user guide</Link>
+          </Button>
+        </CardHeader>
+      </Card>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>

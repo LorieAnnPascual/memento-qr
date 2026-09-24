@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 
+import { AppVersion } from './app-version';
 import { SidebarNav } from './sidebar-nav';
 
 export function Sidebar() {
@@ -11,6 +12,7 @@ export function Sidebar() {
           <Image src="/logo.svg" alt="" fill className="object-contain" priority />
         </div>
         Memento QR
+        <AppVersion />
       </Link>
       <SidebarNav />
     </aside>

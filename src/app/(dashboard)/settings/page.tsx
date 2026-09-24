@@ -6,9 +6,14 @@ import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { ProfileForm } from '@/components/settings/profile-form';
 import { AppearanceCard } from '@/components/settings/appearance-card';
 import { BackupCard } from '@/components/settings/backup-card';
+import { UserGuide } from '@/components/help/user-guide';
 import { UpdatePasswordForm } from '@/components/auth/update-password-form';
 
-export default async function SettingsPage() {
+const TABS = ['profile', 'appearance', 'data', 'security', 'guide'];
+
+export default async function SettingsPage({ searchParams }: PageProps<'/settings'>) {
+  const { tab } = await searchParams;
+  const requestedTab = typeof tab === 'string' && TABS.includes(tab) ? tab : 'profile';
   const user = await getCurrentUser();
 
   if (!user) {
@@ -22,12 +27,13 @@ export default async function SettingsPage() {
         <p className="text-muted-foreground">Manage your account and how Memento QR works for you.</p>
       </div>
 
-      <Tabs defaultValue="profile">
+      <Tabs defaultValue={requestedTab}>
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="data">Your data</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="guide">User guide</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -74,6 +80,21 @@ export default async function SettingsPage() {
             </CardHeader>
             <CardContent>
               <UpdatePasswordForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="guide">
+          <Card>
+            <CardHeader>
+              <CardTitle>User guide</CardTitle>
+              <CardDescription>
+                How to use Memento QR, step by step. You are on version{' '}
+                {process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UserGuide />
             </CardContent>
           </Card>
         </TabsContent>

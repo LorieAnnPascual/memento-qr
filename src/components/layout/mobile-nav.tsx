@@ -6,6 +6,7 @@ import { Menu, ScanLine } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { AppVersion } from './app-version';
 import { SidebarNav } from './sidebar-nav';
 
 export function MobileNav() {
@@ -25,6 +26,7 @@ export function MobileNav() {
             <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2 font-semibold">
               <ScanLine className="size-5" />
               Memento QR
+              <AppVersion />
             </Link>
           </SheetTitle>
         </SheetHeader>
