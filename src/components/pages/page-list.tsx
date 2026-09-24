@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { toast } from 'sonner';
 import type { Data } from '@puckeditor/core';
-import { Copy, Download, ExternalLink, FilePlus, Pencil, Trash2 } from 'lucide-react';
+import { Copy, CopyPlus, Download, ExternalLink, FilePlus, Pencil, Trash2 } from 'lucide-react';
 
 import type { PageTemplate } from '@/lib/db/schema';
 import { downloadPageHtml } from '@/lib/pages/download-html';
@@ -34,6 +34,7 @@ export function PageList({ initialItems }: PageListProps) {
   const [items, setItems] = useState(initialItems);
   const [pendingDelete, setPendingDelete] = useState<PageTemplate | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   async function handleCopy(url: string): Promise<void> {
     try {
@@ -51,6 +52,33 @@ export function PageList({ initialItems }: PageListProps) {
     } catch (error) {
       toast.error('Failed to export the page.');
       console.error('Page export error:', error);
+    }
+  }
+
+  async function handleDuplicate(page: PageTemplate): Promise<void> {
+    setDuplicatingId(page.id);
+    try {
+      const response = await fetch('/api/pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${page.name} (copy)`.slice(0, 200),
+          description: page.description ?? undefined,
+          category: page.category,
+          fromTemplateId: page.id,
+        }),
+      });
+      if (!response.ok) throw new Error('Request failed');
+
+      const created = (await response.json()) as PageTemplate;
+      setItems((prev) => [created, ...prev]);
+      toast.success(`Duplicated "${page.name}" as a private, unpublished copy`);
+      router.refresh();
+    } catch (error) {
+      toast.error('Failed to duplicate the page. Please try again.');
+      console.error('Page duplicate error:', error);
+    } finally {
+      setDuplicatingId(null);
     }
   }
 
@@ -152,6 +180,16 @@ export function PageList({ initialItems }: PageListProps) {
                           onClick={() => handleExport(item)}
                         >
                           <Download className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Duplicate ${item.name}`}
+                          title="Duplicate"
+                          disabled={duplicatingId === item.id}
+                          onClick={() => handleDuplicate(item)}
+                        >
+                          <CopyPlus className="size-4" />
                         </Button>
                         <Button asChild variant="ghost" size="icon-sm">
                           <Link href={`/pages/${item.id}`} aria-label={`Edit ${item.name}`}>

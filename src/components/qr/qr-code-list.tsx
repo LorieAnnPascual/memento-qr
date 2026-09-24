@@ -424,6 +424,7 @@ export function QRCodeList({ initialItems, initialTotal, pageSize, initialFolder
                         variant="ghost"
                         size="icon-sm"
                         aria-label={`Duplicate ${item.name}`}
+                        title="Duplicate"
                         disabled={duplicatingId === item.id}
                         onClick={() => handleDuplicate(item)}
                       >

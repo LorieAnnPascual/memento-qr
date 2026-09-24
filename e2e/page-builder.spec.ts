@@ -34,6 +34,30 @@ async function memorialData(request: APIRequestContext): Promise<unknown> {
 const canvas = (page: Page) => page.frameLocator('iframe#preview-frame');
 
 test.describe('Pages list', () => {
+  test('duplicating a page makes a private, unpublished copy', async ({ page, request }) => {
+    const original = await pageFromTemplate(request, qaName('dup-source'));
+    let copyId: string | undefined;
+    try {
+      await page.goto('/pages');
+      await page.getByRole('button', { name: `Duplicate ${original.name}` }).click();
+
+      const row = page.getByRole('row').filter({ hasText: `${original.name} (copy)` });
+      await expect(row).toBeVisible();
+
+      const list = (await (await request.get('/api/pages')).json()) as {
+        items: { id: string; name: string; isPublished: boolean; isPublic: boolean }[];
+      };
+      const copy = list.items.find((item) => item.name === `${original.name} (copy)`);
+      copyId = copy?.id;
+      expect(copy).toBeTruthy();
+      expect(copy!.isPublished).toBe(false);
+      expect(copy!.isPublic).toBe(false);
+    } finally {
+      await deletePage(request, original.id);
+      if (copyId) await deletePage(request, copyId);
+    }
+  });
+
   test('shows every page with its publish status @mobile', async ({ page }) => {
     await page.goto('/pages');
 
