@@ -24,7 +24,10 @@ const ebGaramond = EB_Garamond({
 // (src/lib/qr/card-fonts.ts) — loaded globally so both the live preview and
 // the canvas/SVG export (which needs document.fonts to already have them)
 // can render with them.
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"], weight: ["400", "700"] });
+// Inter is a variable font, so every weight (including the in-between ones the
+// app's body text uses) is available from one file. It is the app's body/UI font
+// as well as a QR card font.
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin"],
