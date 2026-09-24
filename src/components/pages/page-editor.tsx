@@ -285,11 +285,8 @@ export function PageEditor({ page }: PageEditorProps) {
             latestData.current = data;
             setIsDirty(true);
           }}
-          renderHeaderActions={() => (
-            <Button type="button" size="sm" disabled={isBusy} onClick={requestSave}>
-              Save
-            </Button>
-          )}
+          // Saving and publishing live in the toolbar above; hide the editor's own header buttons.
+          overrides={{ headerActions: () => <></> }}
         />
       </div>
 
