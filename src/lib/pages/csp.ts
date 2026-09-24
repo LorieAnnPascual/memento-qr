@@ -12,9 +12,9 @@ const FRAME_SOURCES =
 export const PUBLIC_PAGE_CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   'img-src http: https: data:',
-  "font-src 'self' data:",
+  "font-src 'self' data: https://fonts.gstatic.com",
   FRAME_SOURCES,
   "object-src 'none'",
   "base-uri 'self'",
@@ -25,7 +25,8 @@ export const PUBLIC_PAGE_CSP = [
 export const STANDALONE_PAGE_CSP = [
   "default-src 'none'",
   'img-src http: https: data:',
-  "style-src 'unsafe-inline'",
+  "style-src 'unsafe-inline' https://fonts.googleapis.com",
+  'font-src https://fonts.gstatic.com',
   FRAME_SOURCES,
   "base-uri 'none'",
   "form-action 'none'",

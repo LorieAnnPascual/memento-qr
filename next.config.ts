@@ -27,7 +27,9 @@ const nextConfig: NextConfig = {
           // Publish, unpublish and expiry changes must take effect immediately.
           { key: "Cache-Control", value: "no-store" },
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "no-referrer" },
+          // YouTube refuses to play (error 153, "video player configuration") when
+          // the embedding page sends no referrer at all; origin only is enough.
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },
     ];

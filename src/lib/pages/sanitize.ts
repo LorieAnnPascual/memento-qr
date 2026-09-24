@@ -81,7 +81,26 @@ export const FONT_STACKS = {
   serif: "Georgia, 'Times New Roman', serif",
   elegant: "'Palatino Linotype', Palatino, 'Book Antiqua', serif",
   mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+  playfair: "'Playfair Display', Georgia, serif",
+  montserrat: "'Montserrat', -apple-system, 'Segoe UI', sans-serif",
+  roboto: "'Roboto', -apple-system, 'Segoe UI', sans-serif",
+  inter: "'Inter', -apple-system, 'Segoe UI', sans-serif",
+  lusitana: "'Lusitana', Georgia, serif",
 } as const;
+
+const GOOGLE_FONT_FAMILIES: Partial<Record<string, string>> = {
+  playfair: 'Playfair+Display:wght@400;500;600;700',
+  montserrat: 'Montserrat:wght@400;500;600;700',
+  roboto: 'Roboto:wght@400;500;700',
+  inter: 'Inter:wght@400;500;600;700',
+  lusitana: 'Lusitana:wght@400;700',
+};
+
+/** Google Fonts stylesheet URL for a web font choice; '' for the built-in system fonts. */
+export function resolveFontStylesheet(key: string | undefined): string {
+  const family = key ? GOOGLE_FONT_FAMILIES[key] : undefined;
+  return family ? `https://fonts.googleapis.com/css2?family=${family}&display=swap` : '';
+}
 
 export type FontStackKey = keyof typeof FONT_STACKS;
 

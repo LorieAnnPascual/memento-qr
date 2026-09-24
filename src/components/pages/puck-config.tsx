@@ -2,6 +2,7 @@ import type { Config, CustomField, Slot } from '@puckeditor/core';
 
 import {
   resolveFontStack,
+  resolveFontStylesheet,
   safeColor,
   safeImageUrl,
   safeLinkUrl,
@@ -56,7 +57,16 @@ export interface PageProps {
 }
 
 export interface RootProps {
-  fontFamily: 'sans' | 'serif' | 'elegant' | 'mono';
+  fontFamily:
+    | 'sans'
+    | 'serif'
+    | 'elegant'
+    | 'mono'
+    | 'playfair'
+    | 'montserrat'
+    | 'roboto'
+    | 'inter'
+    | 'lusitana';
   pageBackground: string;
   pageBackgroundImage: string;
   pageBackgroundFit: 'cover' | 'contain' | 'tile';
@@ -97,6 +107,11 @@ export const puckConfig: Config<PageProps, RootProps> = {
           { label: 'Classic serif', value: 'serif' },
           { label: 'Elegant serif', value: 'elegant' },
           { label: 'Monospace', value: 'mono' },
+          { label: 'Playfair Display', value: 'playfair' },
+          { label: 'Montserrat', value: 'montserrat' },
+          { label: 'Roboto', value: 'roboto' },
+          { label: 'Inter', value: 'inter' },
+          { label: 'Lusitana', value: 'lusitana' },
         ],
       },
       pageBackground: { type: 'text', label: 'Page background color (hex)' },
@@ -157,6 +172,7 @@ export const puckConfig: Config<PageProps, RootProps> = {
 
       return (
         <div
+          className="memento-page"
           style={{
             fontFamily: resolveFontStack(fontFamily),
             backgroundColor: safeColor(pageBackground, '#ffffff'),
@@ -171,6 +187,11 @@ export const puckConfig: Config<PageProps, RootProps> = {
             }),
           }}
         >
+          {resolveFontStylesheet(fontFamily) && (
+            <link rel="stylesheet" href={resolveFontStylesheet(fontFamily)} />
+          )}
+          {/* Dashboard heading/body fonts must not override the page's chosen font. */}
+          <style>{`.memento-page :is(h1,h2,h3,h4,h5,h6,p,a,span,li,button,summary,div){font-family:inherit}`}</style>
           {children}
         </div>
       );
@@ -356,6 +377,8 @@ export const puckConfig: Config<PageProps, RootProps> = {
                 <iframe
                   src={embedUrl}
                   title="Embedded video"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
                   allowFullScreen
                 />
