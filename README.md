@@ -21,12 +21,16 @@ Live site: <https://memento-qr.vercel.app>
 
 ## Latest improvements
 
+### v1.3.0
+- **Real card sizes in the card builder**: business card (US/EU), postcard (6×4 in, A6), square or a custom width and height in mm or inches, with bleed and on-canvas guides (cut line, safe area, crop marks). The print dialog opens at the card's size.
+- Elements are moved proportionally when the card size changes (the QR stays square).
+- Live-tested against the real database with temporary accounts: destination history and restore, purpose notes, the daily link check, and saving card templates with a real size.
+
 ### v1.2.0
 - **QR health check verdict**: Looks good / Needs attention / Not working, each problem with a suggested fix; a test reader decodes the rendered code to prove it scans.
 - **Ongoing link monitoring**: a daily cron checks dynamic codes and flags broken ones on the dashboard and in the activity log (in-app only; there is no email sending).
 - **Destination history and restore**, and a **purpose** note on codes and pages.
 - **Print-ready PDF** with bleed and crop marks, real print sizes and a warning when the QR would print too small.
-- **Card builder sizes**: build a card from scratch at a real size, with bleed and print guides drawn around the canvas; the print dialog opens at that size.
 - Fixes: functions now run next to the database (Tokyo), and the database pool was resized so pages no longer stall on the transaction pooler.
 
 ### v1.1.0
@@ -76,7 +80,7 @@ End-to-end tests seed test data into the connected database (`pnpm db:seed`) and
 
 ## Deploying
 
-Deployed on Vercel from `main`. Set the environment variables from `.env.example`; use Supabase's transaction pooler (port 6543) for `DATABASE_URL`. Two daily crons (`vercel.json`) keep the free Supabase project awake and check dynamic QR links (both need `CRON_SECRET`). Functions run in `hnd1` (Tokyo) next to the database. Before going live, work through `docs/qa/manual-checklist.md`.
+Deployed on Vercel from `main`. Set the environment variables from `.env.example`; use Supabase's transaction pooler (port 6543) for `DATABASE_URL`. Two daily crons (`vercel.json`) keep the free Supabase project awake and check dynamic QR links (both need `CRON_SECRET`). Functions run in `hnd1` (Tokyo) next to the database. Database changes are applied with the SQL files in `src/lib/db/migrations/` (or `pnpm db:push`); apply any new one **before** deploying code that uses it (0003 shared workspace and handoff, 0004 history, purpose and link health). Before going live, work through `docs/qa/manual-checklist.md`.
 
 ## Documentation
 
