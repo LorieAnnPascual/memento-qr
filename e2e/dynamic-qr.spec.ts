@@ -47,6 +47,7 @@ test.describe('Dynamic QR lifecycle (through the UI)', () => {
     await page.goto('/qr/new');
     await page.getByLabel('Name', { exact: true }).fill(name);
     await page.getByRole('textbox', { name: 'Website URL' }).fill('https://example.com/first');
+    await page.getByRole('tab', { name: 'Dynamic QR' }).click();
     await page.getByRole('switch', { name: 'Make this dynamic' }).click();
     await expect(page.getByText('A short link will be generated the first time you save.')).toBeVisible();
 
@@ -69,6 +70,7 @@ test.describe('Dynamic QR lifecycle (through the UI)', () => {
       expect(response.headers()['location']).toBe('https://example.com/first');
 
       // --- change the target; the same printed code follows it
+      await page.getByRole('tab', { name: 'Content' }).click();
       await page.getByRole('textbox', { name: 'Website URL' }).fill('https://example.com/second');
       await saveChanges(page);
 
@@ -76,6 +78,7 @@ test.describe('Dynamic QR lifecycle (through the UI)', () => {
       expect(response.headers()['location']).toBe('https://example.com/second');
 
       // --- pause
+      await page.getByRole('tab', { name: 'Dynamic QR' }).click();
       await page.getByRole('switch', { name: 'Paused' }).click();
       await saveChanges(page);
 

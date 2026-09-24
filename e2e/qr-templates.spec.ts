@@ -39,6 +39,7 @@ test.describe('QR templates', () => {
     await page.goto('/qr/new');
     await page.getByRole('textbox', { name: 'Website URL' }).fill('example.com');
 
+    await page.getByRole('tab', { name: 'Style' }).click();
     await page.getByRole('button', { name: 'Choose template' }).click();
     await page.getByRole('button', { name: 'Save current style as template' }).click();
     await page.getByLabel('Name', { exact: true }).last().fill(name);

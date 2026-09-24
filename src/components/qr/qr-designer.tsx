@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { QRCode } from '@/lib/db/schema';
 import { DEFAULT_QR_STYLE, type QRStyleConfig } from '@/lib/qr/generator';
@@ -287,7 +288,16 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
       <QRTypeSelector value={type} onChange={setType} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-6">
+        {/* Tabs (kept mounted, just hidden) so the preview stays in view while editing. */}
+        <Tabs defaultValue="content" className="min-w-0 gap-4">
+          <TabsList className="w-full">
+            <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="dynamic">Dynamic QR</TabsTrigger>
+            <TabsTrigger value="layout">Layout</TabsTrigger>
+            <TabsTrigger value="style">Style</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="content" forceMount className="data-[state=inactive]:hidden">
           <Card>
             <CardHeader>
               <CardTitle>Content</CardTitle>
@@ -297,7 +307,9 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
               <QRTypeForm type={type} formValues={formValues} onChangeValues={handleChangeValues} />
             </CardContent>
           </Card>
+          </TabsContent>
 
+          <TabsContent value="dynamic" forceMount className="data-[state=inactive]:hidden">
           <Card>
             <CardHeader>
               <CardTitle>Dynamic QR</CardTitle>
@@ -371,7 +383,9 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
               )}
             </CardContent>
           </Card>
+          </TabsContent>
 
+          <TabsContent value="layout" forceMount className="data-[state=inactive]:hidden">
           <Card>
             <CardHeader>
               <CardTitle>Layout</CardTitle>
@@ -381,7 +395,9 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
               <QRLayoutPicker value={style} onChange={setStyle} />
             </CardContent>
           </Card>
+          </TabsContent>
 
+          <TabsContent value="style" forceMount className="data-[state=inactive]:hidden">
           <Card>
             <CardHeader className="flex items-start justify-between">
               <div>
@@ -409,7 +425,8 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
               <QRStyleEditor value={style} onChange={setStyle} />
             </CardContent>
           </Card>
-        </div>
+          </TabsContent>
+        </Tabs>
 
         <div className="lg:sticky lg:top-6 lg:self-start">
           <Card>

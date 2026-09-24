@@ -87,6 +87,7 @@ test.describe('QR generator: styling', () => {
     await expect(preview(page)).toBeVisible();
     const before = await page.getByTestId('qr-preview-canvas').innerHTML();
 
+    await page.getByRole('tab', { name: 'Style' }).click();
     await page.getByRole('combobox', { name: 'Dot style', exact: true }).click();
     await page.getByRole('option').filter({ hasNotText: /rounded/i }).first().click();
 
@@ -96,6 +97,7 @@ test.describe('QR generator: styling', () => {
   test('applying a template restyles the code', async ({ page }) => {
     await page.goto('/qr/new');
     await page.getByRole('textbox', { name: 'Website URL' }).fill('example.com');
+    await page.getByRole('tab', { name: 'Style' }).click();
     await page.getByRole('button', { name: 'Choose template' }).click();
     await expect(page.getByRole('dialog').getByText('Choose a template')).toBeVisible();
 
@@ -109,6 +111,7 @@ test.describe('QR generator: styling', () => {
     await page.goto('/qr/new');
     await page.getByRole('textbox', { name: 'Website URL' }).fill('example.com');
 
+    await page.getByRole('tab', { name: 'Style' }).click();
     const uploaded = page.waitForResponse((r) => r.url().endsWith('/api/upload') && r.request().method() === 'POST');
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'qa-logo.png', mimeType: 'image/png', buffer: PNG });
     const response = await uploaded;
