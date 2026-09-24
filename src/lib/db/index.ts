@@ -16,9 +16,11 @@ if (!connectionString) {
 // idle connections are released quickly.
 const globalForDb = globalThis as unknown as { pgClient?: ReturnType<typeof postgres> };
 
-// On Vercel every request can run on its own server instance, so each one gets a
-// single connection; the pooler (use the port 6543 address there) shares them.
-const maxConnections = process.env.VERCEL ? 1 : 5;
+// A page runs several queries at once. Over a single connection they are sent as
+// a pipeline, and Supabase's transaction pooler (port 6543, used on Vercel) stalls
+// on that until the function times out. More than one connection avoids it, and
+// the pooler shares them, so 5 is safe on Vercel too.
+const maxConnections = 5;
 
 const client =
   globalForDb.pgClient ??
