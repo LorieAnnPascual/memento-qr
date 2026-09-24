@@ -53,13 +53,17 @@ function round(value: number, digits = 1): number {
 
 /** Choose a real print size, see the card's proportions, and download a print-ready PDF with optional bleed and crop marks. */
 export function PrintCardDialog({ open, onOpenChange, config, title, socialLinks, fileName }: PrintCardDialogProps) {
-  const [presetId, setPresetId] = useState(PRINT_PRESETS[0].id);
+  // A card built at a real size opens at that size and bleed, so nothing is cropped.
+  const designSize = config.cardLayout === 'custom' ? config.customCard?.sizeMm : undefined;
+  const designBleed = designSize ? (config.customCard?.bleedMm ?? DEFAULT_BLEED_MM) : DEFAULT_BLEED_MM;
+
+  const [presetId, setPresetId] = useState(designSize ? CUSTOM_PRESET_ID : PRINT_PRESETS[0].id);
   const [portrait, setPortrait] = useState(false);
   const [unit, setUnit] = useState<Unit>('mm');
-  const [customWidth, setCustomWidth] = useState('90');
-  const [customHeight, setCustomHeight] = useState('50');
-  const [bleedOn, setBleedOn] = useState(true);
-  const [bleedMm, setBleedMm] = useState(DEFAULT_BLEED_MM);
+  const [customWidth, setCustomWidth] = useState(designSize ? String(round(designSize.width, 2)) : '90');
+  const [customHeight, setCustomHeight] = useState(designSize ? String(round(designSize.height, 2)) : '50');
+  const [bleedOn, setBleedOn] = useState(designSize ? designBleed > 0 : true);
+  const [bleedMm, setBleedMm] = useState(designBleed > 0 ? designBleed : DEFAULT_BLEED_MM);
   const [marksOn, setMarksOn] = useState(true);
 
   const [base, setBase] = useState<BaseCard | null>(null);

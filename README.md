@@ -9,7 +9,7 @@ Live site: <https://memento-qr.vercel.app>
 - **QR codes**: 11 types (URL, text, phone, SMS, email, WiFi, vCard, WhatsApp, event, location, social) with full styling: dot and corner shapes, colors and gradients, logos, card layouts, and PNG / SVG / JPEG / WebP downloads.
 - **Dynamic codes**: the printed code never changes, but its destination can. Pause, set an expiry date or a scan limit. Every scan is counted.
 - **Analytics**: scans over time, devices, browsers, countries and cities (IP addresses are hashed, never stored), per-code drill-down, CSV export, side-by-side comparison.
-- **Templates**: built-in and team-made QR design templates, plus a card designer.
+- **Templates**: built-in and team-made QR design templates, plus a card designer with real print sizes (business card, postcard, custom mm or inches), bleed, and on-canvas guides (cut line, safe area, crop marks).
 - **Page builder**: drag-and-drop landing pages (hero, text, buttons, FAQ, gallery, video, map, columns, contact, social and more) with page background color or image. Export as one HTML file or publish at a shareable link with an optional expiry date.
 - **Organizing**: folders, batch import from CSV (up to 200 rows), duplicate a code for A/B variants, media library, activity log.
 - **Health check**: "Is this QR working?" gives a plain verdict (Looks good, Needs attention, Not working) with a suggested fix. It decodes the code with a test reader, checks contrast, logo size and density, and confirms the destination answers.
@@ -26,6 +26,7 @@ Live site: <https://memento-qr.vercel.app>
 - **Ongoing link monitoring**: a daily cron checks dynamic codes and flags broken ones on the dashboard and in the activity log (in-app only; there is no email sending).
 - **Destination history and restore**, and a **purpose** note on codes and pages.
 - **Print-ready PDF** with bleed and crop marks, real print sizes and a warning when the QR would print too small.
+- **Card builder sizes**: build a card from scratch at a real size, with bleed and print guides drawn around the canvas; the print dialog opens at that size.
 - Fixes: functions now run next to the database (Tokyo), and the database pool was resized so pages no longer stall on the transaction pooler.
 
 ### v1.1.0

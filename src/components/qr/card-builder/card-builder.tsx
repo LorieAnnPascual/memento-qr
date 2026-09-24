@@ -9,6 +9,8 @@ import { ImagePlus, Shapes, Type } from 'lucide-react';
 import type { QRTemplate } from '@/lib/db/schema';
 import {
   CANVAS_PRESETS,
+  canvasSizeForMm,
+  resizeDesign,
   createDefaultCustomCard,
   generateElementId,
   type CardElement,
@@ -27,6 +29,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CardBuilderElement } from './card-builder-element';
 import { CardBuilderPanel } from './card-builder-panel';
+import { CardSizeControl, type CardSizeChange } from './card-size-control';
+import { PrintGuides, PrintGuidesLegend } from './print-guides';
 
 const PREVIEW_DATA = 'https://memento-qr.vercel.app';
 
@@ -57,6 +61,7 @@ export function CardBuilder({ initialTemplate }: CardBuilderProps) {
   const [selectedId, setSelectedId] = useState<string>('qr');
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showGuides, setShowGuides] = useState(true);
 
   const design = style.customCard ?? createDefaultCustomCard('vertical');
   const selectedElement = design.elements.find((el) => el.id === selectedId);
@@ -145,12 +150,26 @@ export function CardBuilder({ initialTemplate }: CardBuilderProps) {
     updateDesign(design.elements.map((el) => (el.id === id ? { ...el, zIndex: target } : el)));
   }
 
-  function handleOrientationChange(orientation: keyof typeof CANVAS_PRESETS): void {
-    const preset = CANVAS_PRESETS[orientation];
-    setStyle((prev) => ({
-      ...prev,
-      customCard: { ...design, width: preset.width, height: preset.height },
-    }));
+  function handleSizeChange(change: CardSizeChange): void {
+    setStyle((prev) => {
+      const current = prev.customCard ?? design;
+
+      if (change.kind === 'free') {
+        const preset = CANVAS_PRESETS[change.orientation];
+        // Leaving real sizes behind: keep the layout, drop the print size and bleed.
+        const freed = resizeDesign(current, preset.width, preset.height);
+        delete freed.sizeMm;
+        delete freed.bleedMm;
+        return { ...prev, customCard: freed };
+      }
+
+      const canvas = canvasSizeForMm(change.widthMm, change.heightMm);
+      const resized = resizeDesign(current, canvas.width, canvas.height);
+      return {
+        ...prev,
+        customCard: { ...resized, sizeMm: { width: change.widthMm, height: change.heightMm }, bleedMm: change.bleedMm },
+      };
+    });
   }
 
   const sortedElements = useMemo(() => [...design.elements].sort((a, b) => a.zIndex - b.zIndex), [design.elements]);
@@ -189,6 +208,47 @@ export function CardBuilder({ initialTemplate }: CardBuilderProps) {
       setIsSaving(false);
     }
   }
+
+  const guidesOn = showGuides;
+  const backgroundStyle: React.CSSProperties = {
+    backgroundColor: style.cardBackgroundColor ?? '#FFFFFF',
+    ...(style.cardBackgroundImage && {
+      backgroundImage: `url(${style.cardBackgroundImage})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }),
+  };
+
+  const canvasNode = (
+      <div
+        ref={canvasRef}
+        data-testid="card-builder-canvas"
+        onPointerDown={() => setSelectedId('qr')}
+        className="relative shrink-0 overflow-hidden rounded-lg border border-input shadow-sm"
+        style={{
+          width: design.width,
+          height: design.height,
+          backgroundColor: style.cardBackgroundColor ?? '#FFFFFF',
+          ...(style.cardBackgroundImage && {
+            backgroundImage: `url(${style.cardBackgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: style.cardBackgroundImageBlur ? `blur(${style.cardBackgroundImageBlur}px)` : undefined,
+          }),
+        }}
+      >
+        {sortedElements.map((el) => (
+          <CardBuilderElement
+            key={el.id}
+            element={el}
+            isSelected={el.id === selectedId}
+            onSelect={() => setSelectedId(el.id)}
+            onUpdate={(partial) => handleUpdateElement(el.id, partial)}
+            qrRef={el.type === 'qr' ? qrRef : undefined}
+          />
+        ))}
+      </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -256,55 +316,29 @@ export function CardBuilder({ initialTemplate }: CardBuilderProps) {
         </Button>
         <MediaPickerButton onSelect={(url) => addImageElement(url)} label="From media" />
 
-        <div className="ml-auto flex items-center gap-2">
-          <Label htmlFor="cb-orientation" className="text-sm text-muted-foreground">
-            Canvas
-          </Label>
-          <Select
-            value={design.width > design.height ? 'horizontal' : 'vertical'}
-            onValueChange={(v) => handleOrientationChange(v as keyof typeof CANVAS_PRESETS)}
-          >
-            <SelectTrigger id="cb-orientation" className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="vertical">Vertical</SelectItem>
-              <SelectItem value="horizontal">Horizontal</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
+
+      <CardSizeControl design={design} onChange={handleSizeChange} showGuides={showGuides} onShowGuidesChange={setShowGuides} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="flex justify-center overflow-auto rounded-lg border border-dashed bg-muted/30 p-6">
-          <div
-            ref={canvasRef}
-            data-testid="card-builder-canvas"
-            onPointerDown={() => setSelectedId('qr')}
-            className="relative shrink-0 overflow-hidden rounded-lg border border-input shadow-sm"
-            style={{
-              width: design.width,
-              height: design.height,
-              backgroundColor: style.cardBackgroundColor ?? '#FFFFFF',
-              ...(style.cardBackgroundImage && {
-                backgroundImage: `url(${style.cardBackgroundImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: style.cardBackgroundImageBlur ? `blur(${style.cardBackgroundImageBlur}px)` : undefined,
-              }),
-            }}
-          >
-            {sortedElements.map((el) => (
-              <CardBuilderElement
-                key={el.id}
-                element={el}
-                isSelected={el.id === selectedId}
-                onSelect={() => setSelectedId(el.id)}
-                onUpdate={(partial) => handleUpdateElement(el.id, partial)}
-                qrRef={el.type === 'qr' ? qrRef : undefined}
-              />
-            ))}
-          </div>
+          {guidesOn && design.sizeMm ? (
+            <div className="space-y-3">
+              <PrintGuides
+                widthMm={design.sizeMm.width}
+                heightMm={design.sizeMm.height}
+                bleedMm={design.bleedMm ?? 0}
+                canvasWidthPx={design.width}
+                canvasHeightPx={design.height}
+                backgroundStyle={backgroundStyle}
+              >
+                {canvasNode}
+              </PrintGuides>
+              <PrintGuidesLegend bleedMm={design.bleedMm ?? 0} />
+            </div>
+          ) : (
+            canvasNode
+          )}
         </div>
 
         <Card>

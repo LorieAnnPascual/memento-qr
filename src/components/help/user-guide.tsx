@@ -118,6 +118,7 @@ const SECTIONS: GuideSection[] = [
     title: 'Stay organized',
     steps: [
       'Folders: group codes into folders from the QR Codes list. Deleting a folder keeps its codes.',
+      'Card sizes: in the card builder, choose Card size (business card, postcard, square or your own width and height in mm or inches). Turn on Show print guides to see the cut line, the safe area and the bleed, with crop marks at the corners.',
       'Print-ready card: in the QR designer choose Download, then Print-ready PDF. Pick a size (business card, postcard or your own), optionally add bleed and crop marks, check the warnings, and download the PDF. The preview shows proportions only; print the PDF at 100% (Actual size) and scan it before a big run.',
       'Batch import: create many website, text, phone or email codes at once from a CSV file (up to 200 rows).',
       'Duplicate: copy a code to test an A/B variant, then Compare two codes side by side.',
