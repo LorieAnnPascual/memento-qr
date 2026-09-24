@@ -1,7 +1,9 @@
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { Sidebar } from '@/components/layout/sidebar';
+import { SIDEBAR_COOKIE } from '@/components/layout/sidebar-cookie';
 import { Header } from '@/components/layout/header';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 
@@ -12,10 +14,12 @@ export default async function DashboardLayout({ children }: LayoutProps<'/'>) {
     redirect('/login');
   }
 
+  const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === '1';
+
   return (
     <ThemeProvider>
     <div className="flex min-h-screen w-full">
-      <Sidebar />
+      <Sidebar initialCollapsed={collapsed} />
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <Header email={user.email} fullName={user.profile?.fullName ?? null} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>

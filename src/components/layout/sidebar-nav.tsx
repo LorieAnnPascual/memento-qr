@@ -6,7 +6,12 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { NAV_ITEMS } from '@/lib/utils/constants';
 
-export function SidebarNav() {
+interface SidebarNavProps {
+  /** Icons only (desktop sidebar hidden state). Labels stay available to screen readers and as tooltips. */
+  collapsed?: boolean;
+}
+
+export function SidebarNav({ collapsed = false }: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
@@ -19,15 +24,18 @@ export function SidebarNav() {
           <Link
             key={item.href}
             href={item.href}
+            aria-label={collapsed ? item.label : undefined}
+            title={collapsed ? item.label : undefined}
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              collapsed && 'justify-center px-2',
               isActive
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
             <Icon className="size-4" />
-            {item.label}
+            {!collapsed && item.label}
           </Link>
         );
       })}
