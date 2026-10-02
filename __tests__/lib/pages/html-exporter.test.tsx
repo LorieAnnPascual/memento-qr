@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Data } from '@puckeditor/core';
 
 import { exportToHTML, slugifyFileName } from '@/lib/pages/html-exporter';
@@ -97,5 +97,51 @@ describe('slugifyFileName', () => {
   it('makes a safe file name', () => {
     expect(slugifyFileName('Menu 2026!')).toBe('menu-2026');
     expect(slugifyFileName('***')).toBe('page');
+  });
+});
+
+describe('uploaded videos', () => {
+  const HOSTED = 'https://proj.supabase.co/storage/v1/object/public/uploads/abc/clip.mp4';
+
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://proj.supabase.co');
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('plays a video from our own storage with a native player', () => {
+    const html = exportToHTML(pageWith('VideoEmbed', { url: '', file: HOSTED }), 'T');
+
+    expect(html).toContain('<video');
+    expect(html).toContain(`src="${HOSTED}"`);
+    expect(html).toContain('controls');
+    expect(html).not.toContain('<iframe');
+  });
+
+  it('uses a cover image as the poster', () => {
+    const html = exportToHTML(pageWith('VideoEmbed', { file: HOSTED, posterUrl: 'https://a.com/cover.jpg' }), 'T');
+
+    expect(html).toContain('poster="https://a.com/cover.jpg"');
+  });
+
+  it('prefers the uploaded video when a link is also set', () => {
+    const html = exportToHTML(pageWith('VideoEmbed', { url: 'https://youtu.be/dQw4w9WgXcQ', file: HOSTED }), 'T');
+
+    expect(html).toContain('<video');
+    expect(html).not.toContain('youtube.com');
+  });
+
+  it('refuses a video file from any other site', () => {
+    const html = exportToHTML(pageWith('VideoEmbed', { file: 'https://evil.example/storage/v1/object/public/uploads/a/b.mp4' }), 'T');
+
+    expect(html).not.toContain('<video');
+    expect(html).not.toContain('evil.example');
+  });
+
+  it('still renders older pages that only have a link', () => {
+    const html = exportToHTML(pageWith('VideoEmbed', { url: 'https://youtu.be/dQw4w9WgXcQ' }), 'T');
+
+    expect(html).toContain('https://www.youtube.com/embed/dQw4w9WgXcQ');
   });
 });

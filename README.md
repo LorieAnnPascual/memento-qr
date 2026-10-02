@@ -10,8 +10,8 @@ Live site: <https://memento-qr.vercel.app>
 - **Dynamic codes**: the printed code never changes, but its destination can. Pause, set an expiry date or a scan limit. Every scan is counted.
 - **Analytics**: scans over time, devices, browsers, countries and cities (IP addresses are hashed, never stored), per-code drill-down, CSV export, side-by-side comparison.
 - **Templates**: built-in and team-made QR design templates, plus a card designer with real print sizes (business card, postcard, custom mm or inches), bleed, and on-canvas guides (cut line, safe area, crop marks).
-- **Page builder**: drag-and-drop landing pages (hero, text, buttons, FAQ, gallery, video, map, columns, contact, social and more) with page background color or image. Export as one HTML file or publish at a shareable link with an optional expiry date.
-- **Organizing**: folders, batch import from CSV (up to 200 rows), duplicate a code for A/B variants, media library, activity log.
+- **Page builder**: drag-and-drop landing pages (hero, text, buttons, FAQ, gallery, video, map, columns, contact, social and more) with page background color or image. The video block plays your own uploaded videos or a YouTube / Vimeo link. Export as one HTML file or publish at a shareable link with an optional expiry date.
+- **Organizing**: folders, batch import from CSV (up to 200 rows), duplicate a code for A/B variants, a media library for images and videos (MP4, WebM, MOV up to 50 MB), activity log.
 - **Health check**: "Is this QR working?" gives a plain verdict (Looks good, Needs attention, Not working) with a suggested fix. It decodes the code with a test reader, checks contrast, logo size and density, and confirms the destination answers.
 - **Link monitoring**: a daily check of every dynamic code (paused, expired, scan limit, broken destination) with a "Needs attention" card on the dashboard and an entry in the activity log.
 - **Destination history**: every change to a dynamic code's destination (who, when, from what), with one-click restore, plus a purpose note per code.
@@ -20,6 +20,9 @@ Live site: <https://memento-qr.vercel.app>
 - **Data and account**: JSON backup and restore, dark mode, collapsible sidebar, in-app user guide, password reset.
 
 ## Latest improvements
+
+### v1.4.0
+- **Video hosting**: upload edited videos (MP4, WebM, MOV, up to 50 MB) to the Media library, see them play there, copy their link, and use them in the page builder's video block (with an optional cover image). Videos upload straight to storage with a progress bar, then the server checks the file's real bytes. The Media page shows how much of the 1 GB free storage is used.
 
 ### v1.3.0
 - **Real card sizes in the card builder**: business card (US/EU), postcard (6×4 in, A6), square or a custom width and height in mm or inches, with bleed and on-canvas guides (cut line, safe area, crop marks). The print dialog opens at the card's size.
@@ -75,12 +78,13 @@ Next.js 16 (App Router, TypeScript strict), Tailwind CSS v4 + shadcn/ui, Supabas
 | `pnpm test:run` | Unit and integration tests |
 | `pnpm test:e2e` | Playwright end-to-end tests (see below) |
 | `pnpm db:generate` / `db:push` / `db:studio` | Database schema tools |
+| `pnpm storage:configure` | Raises the `uploads` bucket size limit so videos fit (run once per Supabase project) |
 
 End-to-end tests seed test data into the connected database (`pnpm db:seed`) and must be followed by `pnpm db:teardown`. Because the workspace is shared, do not run them against a database your team is using.
 
 ## Deploying
 
-Deployed on Vercel from `main`. Set the environment variables from `.env.example`; use Supabase's transaction pooler (port 6543) for `DATABASE_URL`. Two daily crons (`vercel.json`) keep the free Supabase project awake and check dynamic QR links (both need `CRON_SECRET`). Functions run in `hnd1` (Tokyo) next to the database. Database changes are applied with the SQL files in `src/lib/db/migrations/` (or `pnpm db:push`); apply any new one **before** deploying code that uses it (0003 shared workspace and handoff, 0004 history, purpose and link health). Before going live, work through `docs/qa/manual-checklist.md`.
+Deployed on Vercel from `main`. Set the environment variables from `.env.example`; use Supabase's transaction pooler (port 6543) for `DATABASE_URL`. Two daily crons (`vercel.json`) keep the free Supabase project awake and check dynamic QR links (both need `CRON_SECRET`). Functions run in `hnd1` (Tokyo) next to the database. Database changes are applied with the SQL files in `src/lib/db/migrations/` (or `pnpm db:push`); apply any new one **before** deploying code that uses it (0003 shared workspace and handoff, 0004 history, purpose and link health). Run `pnpm storage:configure` once so the storage bucket accepts videos (a new project's bucket defaults to a much smaller limit); Supabase's free plan still caps a single file at 50 MB and total storage at 1 GB, and bandwidth is limited too, so heavily watched videos can use it up. Before going live, work through `docs/qa/manual-checklist.md`.
 
 ## Documentation
 

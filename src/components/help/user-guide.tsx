@@ -85,7 +85,7 @@ const SECTIONS: GuideSection[] = [
     ],
     tips: [
       'Published pages are public to anyone with the link, so do not put private information on them.',
-      'Video blocks accept YouTube and Vimeo links.',
+      'Video blocks play a video you uploaded to Media (add an optional cover image), or a YouTube or Vimeo link.',
     ],
     link: { href: '/pages', label: 'Open Pages' },
   },
@@ -93,11 +93,18 @@ const SECTIONS: GuideSection[] = [
     id: 'media',
     title: 'Media library',
     steps: [
-      'Every image you upload (logos, backgrounds, page images) is kept under Media.',
-      'Anywhere an image is needed, use Choose from media to reuse one instead of uploading it again.',
+      'Every image and video you upload (logos, backgrounds, page images, videos) is kept under Media.',
+      'To host a video, click Upload media and choose an MP4, WebM or MOV file. A progress bar shows while it uploads; keep the tab open until it finishes.',
+      'Copy link gives you the file’s web address, for example to paste into a QR code.',
+      'Anywhere an image is needed, use Choose from media to reuse one instead of uploading it again. In a page’s Video block, use Upload video or From media.',
       'Deleting a file from Media removes it everywhere it was used.',
     ],
-    tips: ['Images can be PNG, JPG, WebP or SVG, up to 500 KB.'],
+    tips: [
+      'Images can be PNG, JPG, WebP or SVG, up to 500 KB. Videos can be up to 50 MB.',
+      'MP4 (H.264) plays on every phone and browser; WebM may not play on older iPhones. If an edited video is too big, export it at 720p or 1080p with a lower bitrate.',
+      'The Media page shows how much of the 1 GB of free storage is used. Videos use it up quickly, so delete clips you no longer need.',
+      'A deleted video can keep playing for anyone who watched it recently for up to an hour, because copies are cached.',
+    ],
     link: { href: '/media', label: 'Open Media' },
   },
   {

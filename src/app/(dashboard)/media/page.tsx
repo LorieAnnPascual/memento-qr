@@ -23,7 +23,7 @@ export default async function MediaPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Media</h1>
         <p className="text-muted-foreground">
-          Logos and card backgrounds the team has uploaded. Deleting a file here removes it everywhere
+          Logos, card backgrounds, page images and videos the team has uploaded. Deleting a file here removes it everywhere
           it&apos;s used.
         </p>
       </div>

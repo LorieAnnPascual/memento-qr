@@ -1,6 +1,6 @@
 {
   "name": "memento-qr",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,6 +19,7 @@
     "db:seed-templates": "tsx src/lib/db/seed-templates.ts",
     "db:seed-page-templates": "tsx src/lib/db/seed-page-templates.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "storage:configure": "tsx scripts/configure-storage.ts",
     "db:teardown": "tsx scripts/teardown.ts",
     "db:reset": "pnpm db:teardown && pnpm db:seed",
     "test:e2e": "playwright test",

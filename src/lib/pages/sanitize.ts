@@ -70,6 +70,26 @@ export function toVideoEmbedUrl(value: string | undefined): string {
   return '';
 }
 
+/**
+ * A video uploaded to the Media library: only files in this project's own
+ * storage bucket qualify, so a page can never make a visitor's browser load a
+ * video from (or send a request to) an arbitrary site. Anything else returns ''.
+ */
+export function safeHostedVideoUrl(value: string | undefined): string {
+  const trimmed = (value ?? '').trim();
+  const storage = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!trimmed || !storage) return '';
+  try {
+    const url = new URL(trimmed);
+    if (url.origin !== new URL(storage).origin) return '';
+    if (!url.pathname.startsWith('/storage/v1/object/public/uploads/')) return '';
+    if (!/\.(mp4|webm|mov)$/i.test(url.pathname)) return '';
+    return url.origin + url.pathname;
+  } catch {
+    return '';
+  }
+}
+
 /** Google Maps embed URL for a free-text address. */
 export function toMapEmbedUrl(address: string | undefined): string {
   const trimmed = (address ?? '').trim();

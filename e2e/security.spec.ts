@@ -312,7 +312,7 @@ test.describe('Uploads', () => {
 });
 
 test.describe('Headers and cookies', () => {
-  test('published pages are locked down (CSP, nosniff, no referrer, no-store)', async ({ baseURL }) => {
+  test('published pages are locked down (CSP, nosniff, origin-only referrer, no-store)', async ({ baseURL }) => {
     const anon = await playwrightRequest.newContext({ baseURL });
     const response = await anon.get(`/p/${CODES.pageLive}`);
     const headers = response.headers();
@@ -321,7 +321,10 @@ test.describe('Headers and cookies', () => {
     expect(headers['content-security-policy']).toContain("object-src 'none'");
     expect(headers['content-security-policy']).toContain("form-action 'none'");
     expect(headers['x-content-type-options']).toBe('nosniff');
-    expect(headers['referrer-policy']).toBe('no-referrer');
+    // Origin only, never a full address. (No referrer at all makes YouTube refuse to play embeds.)
+    expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+    // Uploaded videos may load from our own storage and nowhere else.
+    expect(headers['content-security-policy']).toMatch(/media-src 'self' https:\/\/[^ ;]+\.supabase\.co(;|$)/);
     expect(headers['cache-control']).toContain('no-store');
   });
 

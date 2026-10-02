@@ -21,6 +21,9 @@ Use at least one iPhone and one Android phone.
 - [ ] Open a published page link on an iPhone (Safari) and an Android phone (Chrome): looks right, text readable, no sideways scrolling
 - [ ] Video block plays; map block shows the right place; buttons open the right link (tel:, mailto:)
 - [ ] Background image page: image fills the screen; darkening makes text readable
+- [ ] Uploaded video (page builder Video block, MP4 made by the team's editing tool): plays on an iPhone (Safari) and an Android phone (Chrome) with sound, goes full screen, and a portrait (phone-shot) video is not cropped
+- [ ] Uploaded WebM: note whether it plays on the oldest iPhone available (it may not; MP4 is the safe choice)
+- [ ] A real edited video near the 50 MB limit uploads on the office connection and on mobile data; the progress bar moves and it appears under Media
 - [ ] Open the **exported .html file** in Chrome, Firefox and Safari: matches the published page
 
 ## 3. Other browsers (15 min)

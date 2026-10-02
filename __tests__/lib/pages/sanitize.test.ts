@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import {
   resolveFontStack,
   safeColor,
+  safeHostedVideoUrl,
   safeImageUrl,
   safeLinkUrl,
   toMapEmbedUrl,
@@ -93,5 +94,60 @@ describe('resolveFontStack', () => {
     expect(resolveFontStack('serif')).toContain('Georgia');
     expect(resolveFontStack('nope')).toContain('Roboto');
     expect(resolveFontStack(undefined)).toContain('Roboto');
+  });
+});
+
+describe('safeHostedVideoUrl', () => {
+  const STORAGE = 'https://proj.supabase.co';
+  const good = `${STORAGE}/storage/v1/object/public/uploads/abc/def.mp4`;
+
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', STORAGE);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('accepts a video from our own storage bucket', () => {
+    for (const ext of ['mp4', 'webm', 'mov', 'MP4']) {
+      const url = `${STORAGE}/storage/v1/object/public/uploads/abc/def.${ext}`;
+      expect(safeHostedVideoUrl(url)).toBe(url);
+    }
+  });
+
+  it('drops the query string and fragment', () => {
+    expect(safeHostedVideoUrl(`${good}?download=1#t=5`)).toBe(good);
+  });
+
+  it('refuses videos from anywhere else', () => {
+    for (const url of [
+      'https://evil.example/storage/v1/object/public/uploads/a/b.mp4',
+      'https://proj.supabase.co.evil.example/storage/v1/object/public/uploads/a/b.mp4',
+      'http://proj.supabase.co/storage/v1/object/public/uploads/a/b.mp4',
+      '//evil.example/a.mp4',
+      '/storage/v1/object/public/uploads/a/b.mp4',
+    ]) {
+      expect(safeHostedVideoUrl(url)).toBe('');
+    }
+  });
+
+  it('refuses other buckets, other file types and path tricks', () => {
+    for (const url of [
+      `${STORAGE}/storage/v1/object/public/private/a/b.mp4`,
+      `${STORAGE}/storage/v1/object/public/uploads/a/b.html`,
+      `${STORAGE}/storage/v1/object/public/uploads/a/b.png`,
+      `${STORAGE}/storage/v1/object/public/uploads/../../private/b.mp4`,
+      'javascript:alert(1)',
+      'data:video/mp4;base64,AAAA',
+    ]) {
+      expect(safeHostedVideoUrl(url)).toBe('');
+    }
+  });
+
+  it('refuses everything when the storage address is not configured', () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+
+    expect(safeHostedVideoUrl(good)).toBe('');
+    expect(safeHostedVideoUrl(undefined)).toBe('');
   });
 });

@@ -7,19 +7,24 @@ import { Images } from 'lucide-react';
 import type { UploadedFile } from '@/lib/db/schema';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { isVideoMime } from '@/lib/upload/media-types';
 
 interface MediaPickerButtonProps {
   /** Called with the chosen image's public URL. */
   onSelect: (url: string) => void;
   disabled?: boolean;
   label?: string;
+  /** Which uploads to offer. Images by default, so a video can never end up in an image field. */
+  kind?: 'image' | 'video';
 }
 
 /** "Choose from media" button: opens the team member's uploaded images so one can be reused. */
-export function MediaPickerButton({ onSelect, disabled, label = 'Choose from media' }: MediaPickerButtonProps) {
+export function MediaPickerButton({ onSelect, disabled, label = 'Choose from media', kind = 'image' }: MediaPickerButtonProps) {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<UploadedFile[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const shown = (files ?? []).filter((file) => isVideoMime(file.mimeType) === (kind === 'video'));
 
   async function openPicker(): Promise<void> {
     setOpen(true);
@@ -48,14 +53,14 @@ export function MediaPickerButton({ onSelect, disabled, label = 'Choose from med
         <DialogContent className="max-w-2xl" style={{ zIndex: 100000 }}>
           <DialogHeader>
             <DialogTitle>Choose from media</DialogTitle>
-            <DialogDescription>Pick an image you have already uploaded.</DialogDescription>
+            <DialogDescription>Pick a {kind} you have already uploaded.</DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto">
             {isLoading ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
-            ) : files && files.length > 0 ? (
+            ) : shown.length > 0 ? (
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {files.map((file) => (
+                {shown.map((file) => (
                   <li key={file.id}>
                     <button
                       type="button"
@@ -66,8 +71,12 @@ export function MediaPickerButton({ onSelect, disabled, label = 'Choose from med
                       }}
                     >
                       <div className="flex h-24 items-center justify-center overflow-hidden rounded bg-muted">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={file.publicUrl} alt="" className="max-h-full max-w-full object-contain" />
+                        {kind === 'video' ? (
+                          <video src={`${file.publicUrl}#t=0.1`} preload="metadata" muted playsInline className="max-h-full max-w-full" />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={file.publicUrl} alt="" className="max-h-full max-w-full object-contain" />
+                        )}
                       </div>
                       <p className="mt-1 truncate text-xs" title={file.fileName}>
                         {file.fileName}
@@ -78,7 +87,7 @@ export function MediaPickerButton({ onSelect, disabled, label = 'Choose from med
               </ul>
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No uploaded images yet. Upload one first and it will show up here.
+                No uploaded {kind}s yet. Upload one first and it will show up here.
               </p>
             )}
           </div>

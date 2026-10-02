@@ -4,6 +4,7 @@ import {
   resolveFontStack,
   resolveFontStylesheet,
   safeColor,
+  safeHostedVideoUrl,
   safeImageUrl,
   safeLinkUrl,
   toMapEmbedUrl,
@@ -11,6 +12,7 @@ import {
 } from '@/lib/pages/sanitize';
 
 import { ImageFieldInput } from './image-field';
+import { VideoFieldInput } from './video-field';
 
 // No hooks or client-only APIs in here: the same config drives the editor,
 // the public /p/[shortCode] server render, and the standalone HTML export.
@@ -50,7 +52,7 @@ export interface PageProps {
   Divider: { color: string; width: 'short' | 'full' };
   FAQ: { heading: string; items: { question: string; answer: string }[] };
   ContactCard: { name: string; phone: string; email: string; address: string };
-  VideoEmbed: { url: string };
+  VideoEmbed: { url: string; file: string; posterUrl: string };
   SocialLinks: { links: { label: string; url: string }[] };
   MapEmbed: { address: string };
   Footer: { text: string; backgroundColor: string };
@@ -81,6 +83,16 @@ function imageField(label: string): CustomField<string> {
     label,
     render: ({ value, onChange, readOnly }) => (
       <ImageFieldInput label={label} value={value ?? ''} onChange={onChange} readOnly={readOnly} />
+    ),
+  };
+}
+
+function videoField(label: string): CustomField<string> {
+  return {
+    type: 'custom',
+    label,
+    render: ({ value, onChange, readOnly }) => (
+      <VideoFieldInput label={label} value={value ?? ''} onChange={onChange} readOnly={readOnly} />
     ),
   };
 }
@@ -366,13 +378,37 @@ export const puckConfig: Config<PageProps, RootProps> = {
     },
 
     VideoEmbed: {
-      fields: { url: { type: 'text', label: 'YouTube or Vimeo URL' } },
-      defaultProps: { url: '' },
-      render: ({ url }) => {
-        const embedUrl = toVideoEmbedUrl(url);
+      fields: {
+        file: videoField('Uploaded video'),
+        posterUrl: imageField('Cover image for the video (optional)'),
+        url: { type: 'text', label: 'Or a YouTube / Vimeo URL' },
+      },
+      defaultProps: { url: '', file: '', posterUrl: '' },
+      render: ({ url, file, posterUrl }) => {
+        // An uploaded video wins over a link when both are set.
+        const hostedUrl = safeHostedVideoUrl(file);
+        const poster = safeImageUrl(posterUrl);
+        const embedUrl = hostedUrl ? '' : toVideoEmbedUrl(url);
         return (
           <section style={{ padding: '2rem' }}>
-            {embedUrl ? (
+            {hostedUrl ? (
+              <video
+                src={hostedUrl}
+                poster={poster || undefined}
+                controls
+                playsInline
+                preload="metadata"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  maxWidth: '720px',
+                  maxHeight: '80vh',
+                  margin: '0 auto',
+                  borderRadius: '8px',
+                  background: '#000',
+                }}
+              />
+            ) : embedUrl ? (
               <div style={{ maxWidth: '720px', margin: '0 auto', aspectRatio: '16/9' }}>
                 <iframe
                   src={embedUrl}
@@ -384,7 +420,7 @@ export const puckConfig: Config<PageProps, RootProps> = {
                 />
               </div>
             ) : (
-              <p style={{ textAlign: 'center', opacity: 0.6 }}>Add a YouTube or Vimeo link.</p>
+              <p style={{ textAlign: 'center', opacity: 0.6 }}>Upload a video, or add a YouTube or Vimeo link.</p>
             )}
           </section>
         );
