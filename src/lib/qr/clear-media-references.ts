@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
+import { buildMediaUrl, storagePathFromMediaUrl } from '@/lib/upload/media-types';
 
 /**
  * Removes a deleted media file's URL from any `style_config` that still
@@ -15,7 +16,21 @@ import { db } from '@/lib/db';
  * row referencing two different files only loses the one that matches.
  */
 export async function clearMediaReferences(publicUrl: string): Promise<void> {
+  // A video may be referenced by its own-domain address or by an older storage address.
+  const storagePath = storagePathFromMediaUrl(publicUrl);
+  const videoUrls = [...new Set(storagePath ? [publicUrl, buildMediaUrl(storagePath)] : [publicUrl])];
+
   await Promise.all([
+    // A video QR code points straight at its file, so it has nothing left to play: clear the
+    // target (the scan then answers "Destination Unavailable" instead of erroring).
+    db.execute(sql`
+      UPDATE qr_codes
+      SET target_url = NULL, payload_fields = payload_fields - 'videoUrl', updated_at = now()
+      WHERE qr_type = 'video' AND target_url IN (${sql.join(
+        videoUrls.map((url) => sql`${url}`),
+        sql`, `,
+      )})
+    `),
     db.execute(sql`
       UPDATE qr_codes
       SET style_config = style_config - 'logoUrl', updated_at = now()

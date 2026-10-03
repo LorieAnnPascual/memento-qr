@@ -21,6 +21,7 @@ export function chainable<T>(result: T) {
     offset: () => chain,
     values: () => chain,
     set: () => chain,
+    onConflictDoNothing: () => chain,
     returning: () => Promise.resolve(result),
     then: (resolve: (value: T) => unknown, reject?: (reason: unknown) => unknown) =>
       Promise.resolve(result).then(resolve, reject),
@@ -34,5 +35,7 @@ export function createDbMock() {
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    // Tests that save in a transaction set the implementation (usually: run the callback on this same mock).
+    transaction: vi.fn(),
   };
 }

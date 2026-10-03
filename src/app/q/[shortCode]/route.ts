@@ -1,8 +1,10 @@
-import { and, eq, gt, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, eq, gt, isNotNull, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { qrCodes } from '@/lib/db/schema';
 import { logScanEvent } from '@/lib/analytics/scan-logger';
+import { playableVideoUrl, renderVideoPlayerHtml, videoPlayerCsp } from '@/lib/qr/video-player';
+import { resolveAlias } from '@/lib/slugs/slugs';
 
 type RouteContext = { params: Promise<{ shortCode: string }> };
 
@@ -21,8 +23,8 @@ const DESTINATION_UNAVAILABLE = gateResponse.bind(
 );
 
 /** Explains why a code could not be used, so people see the right message. */
-async function explainRefusal(shortCode: string): Promise<Response> {
-  const [qr] = await db.select().from(qrCodes).where(eq(qrCodes.shortCode, shortCode)).limit(1);
+async function explainRefusal(match: SQL): Promise<Response> {
+  const [qr] = await db.select().from(qrCodes).where(match).limit(1);
 
   if (!qr || !qr.targetUrl || qr.deletedAt) {
     return gateResponse(404, 'QR Code Not Found', 'This QR code does not exist or has been removed.');
@@ -41,20 +43,26 @@ async function explainRefusal(shortCode: string): Promise<Response> {
   return DESTINATION_UNAVAILABLE();
 }
 
-export async function GET(request: Request, { params }: RouteContext): Promise<Response> {
-  const { shortCode } = await params;
+/**
+ * One statement decides and counts: it only matches a code that is live (not deleted,
+ * paused, expired or over its limit, and pointing at something that looks like a URL),
+ * and increments its counter in the same step. That is a single database round trip on
+ * the hot path, and two scans arriving together can never both slip past a scan limit.
+ */
+interface ClaimedScan {
+  id: string;
+  targetUrl: string | null;
+  qrType: string;
+  name: string;
+}
 
-  // One statement decides and counts: it only matches a code that is live
-  // (not deleted, paused, expired or over its limit, and pointing at something
-  // that looks like a URL), and increments its counter in the same step. That
-  // is a single database round trip on the hot path, and two scans arriving
-  // together can never both slip past a scan limit.
+async function claimScan(match: SQL): Promise<ClaimedScan | undefined> {
   const [claimed] = await db
     .update(qrCodes)
     .set({ scanCount: sql`${qrCodes.scanCount} + 1` })
     .where(
       and(
-        eq(qrCodes.shortCode, shortCode),
+        match,
         isNull(qrCodes.deletedAt),
         eq(qrCodes.isPaused, false),
         isNotNull(qrCodes.targetUrl),
@@ -63,9 +71,57 @@ export async function GET(request: Request, { params }: RouteContext): Promise<R
         or(isNull(qrCodes.scanLimit), lt(qrCodes.scanCount, qrCodes.scanLimit)),
       ),
     )
-    .returning({ id: qrCodes.id, targetUrl: qrCodes.targetUrl });
+    .returning({ id: qrCodes.id, targetUrl: qrCodes.targetUrl, qrType: qrCodes.qrType, name: qrCodes.name });
 
-  if (!claimed?.targetUrl) return explainRefusal(shortCode);
+  return claimed;
+}
+
+export async function GET(request: Request, { params }: RouteContext): Promise<Response> {
+  // Link names are lowercase, so a link typed or shared with capitals still works.
+  const shortCode = (await params).shortCode.toLowerCase();
+
+  let match: SQL = eq(qrCodes.shortCode, shortCode);
+  let claimed = await claimScan(match);
+
+  // Not a current link: it may be an old name of a renamed code, which keeps forwarding
+  // to it. Only looked up on a miss, so ordinary scans stay a single query.
+  if (!claimed?.targetUrl) {
+    const renamedTo = await resolveAlias('qr', shortCode);
+    if (renamedTo) {
+      match = eq(qrCodes.id, renamedTo);
+      claimed = await claimScan(match);
+    }
+  }
+
+  if (!claimed?.targetUrl) return explainRefusal(match);
+
+  // A video code shows its video right here, at the same address, instead of forwarding to the file.
+  if (claimed.qrType === 'video') {
+    const src = playableVideoUrl(claimed.targetUrl);
+    if (!src) {
+      // Not one of our hosted videos: give the scan back.
+      await db
+        .update(qrCodes)
+        .set({ scanCount: sql`${qrCodes.scanCount} - 1` })
+        .where(eq(qrCodes.id, claimed.id));
+      return DESTINATION_UNAVAILABLE();
+    }
+
+    logScanEvent(claimed.id, request).catch((error: unknown) => {
+      console.error('Scan logging error:', error);
+    });
+
+    return new Response(renderVideoPlayerHtml({ title: claimed.name, src }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Security-Policy': videoPlayerCsp(),
+        // Every load is a scan, and pausing or expiring a code must take effect at once.
+        'Cache-Control': 'no-store',
+        'X-Robots-Tag': 'noindex',
+      },
+    });
+  }
 
   let destination: URL;
   try {

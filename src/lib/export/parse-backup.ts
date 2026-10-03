@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { isValidSlug } from '@/lib/slugs/slug';
 import { QR_TYPES } from '@/types/qr';
 
 import { BACKUP_FORMAT_VERSION } from './build-backup';
@@ -8,7 +9,6 @@ import { BACKUP_FORMAT_VERSION } from './build-backup';
 export const MAX_RESTORE_ROWS = 1000;
 
 const MAX_JSON_BYTES = 500_000;
-const SHORT_CODE = /^[a-z0-9]{4,12}$/i;
 
 function withinBytes(value: unknown): boolean {
   return JSON.stringify(value).length <= MAX_JSON_BYTES;
@@ -36,7 +36,7 @@ const qrRow = z.object({
   payload: z.string().min(1).max(4096),
   payloadFields: jsonObject.nullable().optional(),
   isDynamic: z.boolean().optional().default(false),
-  shortCode: z.string().regex(SHORT_CODE).nullable().optional(),
+  shortCode: z.string().refine(isValidSlug, 'Invalid link name').nullable().optional(),
   targetUrl: z.string().max(2000).nullable().optional(),
   styleConfig: jsonObject,
   templateId: z.string().nullable().optional(),
@@ -46,7 +46,11 @@ const qrRow = z.object({
   scanLimit: z.number().int().positive().nullable().optional(),
   tags: z.array(z.string().max(100)).max(50).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
-});
+}).refine(
+  // A video code only works as a dynamic code with its link and file; a static one cannot play anything.
+  (qr) => qr.qrType !== 'video' || (qr.isDynamic && Boolean(qr.shortCode) && Boolean(qr.targetUrl)),
+  'A video code must be dynamic',
+);
 
 const templateRow = z.object({
   id: z.string().min(1).optional(),
@@ -62,7 +66,7 @@ const pageRow = z.object({
   category: z.string().min(1).max(50).default('custom'),
   puckData: jsonObject,
   isPublished: z.boolean().optional().default(false),
-  shortCode: z.string().regex(SHORT_CODE).nullable().optional(),
+  shortCode: z.string().refine(isValidSlug, 'Invalid link name').nullable().optional(),
   expiresAt: optionalDate,
 });
 

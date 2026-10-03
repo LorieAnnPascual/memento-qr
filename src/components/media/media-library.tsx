@@ -188,7 +188,7 @@ export function MediaLibrary({ initialFiles }: MediaLibraryProps) {
         open={pendingDelete !== null}
         onOpenChange={(open) => !open && setPendingDelete(null)}
         title="Delete this media file?"
-        description={`${pendingDelete?.fileName ?? ''} will be permanently deleted. QR codes, cards and pages already using it will show a broken image or video.`}
+        description={`${pendingDelete?.fileName ?? ''} will be permanently deleted. QR codes, cards and pages already using it will show a broken image or video, and video QR codes that use it will stop working.`}
         confirmLabel="Delete"
         pendingLabel="Deleting…"
         variant="destructive"

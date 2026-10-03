@@ -31,6 +31,25 @@ describe('parseBackup', () => {
     expect(result.ok && result.backup.invalid).toBe(2);
   });
 
+  it('does not restore a video code as a static code', () => {
+    const video = { name: 'Clip', qrType: 'video', payload: 'https://app.example/q/ana', styleConfig: {} };
+    const dynamic = { ...video, isDynamic: true, shortCode: 'ana-clip', targetUrl: 'https://app.example/media/p/f.mp4' };
+
+    const result = parseBackup(
+      file({
+        qrCodes: [
+          video, // static
+          { ...video, isDynamic: false, shortCode: 'ana-clip', targetUrl: 'https://app.example/media/p/f.mp4' },
+          { ...video, isDynamic: true }, // dynamic but no link or file
+          dynamic,
+        ],
+      }),
+    );
+
+    expect(result.ok && result.backup.qrCodes).toEqual([expect.objectContaining({ qrType: 'video', shortCode: 'ana-clip' })]);
+    expect(result.ok && result.backup.invalid).toBe(3);
+  });
+
   it('turns dates into Date objects and ignores unreadable ones', () => {
     const good = parseBackup(file({ qrCodes: [{ ...QR, expiresAt: '2030-01-01T00:00:00.000Z' }] }));
     const bad = parseBackup(file({ qrCodes: [{ ...QR, expiresAt: 'not a date' }] }));

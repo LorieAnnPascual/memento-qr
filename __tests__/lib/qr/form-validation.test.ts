@@ -134,6 +134,15 @@ describe('getFormValidationError', () => {
     ).toBeNull();
   });
 
+  it('asks for a video for the video type', () => {
+    expect(getFormValidationError('video', { videoUrl: '', fileName: '', fileSize: 0 })).toBe(
+      'Upload or choose a video first.',
+    );
+    expect(
+      getFormValidationError('video', { videoUrl: 'https://a.example/media/p/f.mp4', fileName: 'f.mp4', fileSize: 5 }),
+    ).toBeNull();
+  });
+
   it('throws for an unknown type', () => {
     // @ts-expect-error intentionally invalid type for the exhaustiveness check
     expect(() => getFormValidationError('bogus', {})).toThrow('Unknown QR type: bogus');

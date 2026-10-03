@@ -13,7 +13,9 @@ import type { PageTemplate } from '@/lib/db/schema';
 import { downloadPageHtml } from '@/lib/pages/download-html';
 import { normalizePageData } from '@/lib/pages/normalize';
 import { PAGE_TEMPLATE_CATEGORIES } from '@/lib/pages/templates';
-import { toPublishStatus, type PublishedPageStatus } from '@/lib/pages/page-status';
+import { buildPublishedUrl, toPublishStatus, type PublishedPageStatus } from '@/lib/pages/page-status';
+import { normalizeSlug } from '@/lib/slugs/slug';
+import { SlugField, type SlugStatus } from '@/components/slugs/slug-field';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
@@ -53,7 +55,7 @@ function toDateTimeLocalValue(date: Date | string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-type PendingAction = 'save' | 'publish' | 'unpublish' | null;
+type PendingAction = 'save' | 'publish' | 'unpublish' | 'slug' | null;
 
 interface PageEditorProps {
   page: PageTemplate;
@@ -70,6 +72,11 @@ export function PageEditor({ page }: PageEditorProps) {
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [showPublishPanel, setShowPublishPanel] = useState(false);
   const [copied, setCopied] = useState(false);
+  // The link name (`/p/ana-memorial`). Blank = keep the current one, or a random one the first time.
+  const [slugInput, setSlugInput] = useState(page.shortCode ?? '');
+  const [slugStatus, setSlugStatus] = useState<SlugStatus>('idle');
+  const chosenSlug = normalizeSlug(slugInput);
+  const slugChanged = Boolean(chosenSlug) && chosenSlug !== (status.shortCode ?? '');
   const latestData = useRef<Data>(initialData);
 
   useEffect(() => {
@@ -101,6 +108,22 @@ export function PageEditor({ page }: PageEditorProps) {
     setPendingAction('save');
   }
 
+  function requestSlugChange(): void {
+    if (slugStatus === 'problem' || slugStatus === 'checking') {
+      toast.error(slugStatus === 'checking' ? 'Still checking the link name. Try again in a moment.' : 'Fix the link name first.');
+      return;
+    }
+    setPendingAction('slug');
+  }
+
+  function requestPublish(): void {
+    if (slugStatus === 'problem' || slugStatus === 'checking') {
+      toast.error(slugStatus === 'checking' ? 'Still checking the link name. Try again in a moment.' : 'Fix the link name first.');
+      return;
+    }
+    setPendingAction('publish');
+  }
+
   async function runAction(action: Exclude<PendingAction, null>): Promise<void> {
     setIsBusy(true);
     try {
@@ -117,7 +140,7 @@ export function PageEditor({ page }: PageEditorProps) {
         const response = await fetch(`/api/pages/${page.id}/publish`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ expiresAt }),
+          body: JSON.stringify({ expiresAt, ...(chosenSlug && { slug: chosenSlug }) }),
         });
 
         if (!response.ok) {
@@ -135,6 +158,23 @@ export function PageEditor({ page }: PageEditorProps) {
           isExpired: false,
         });
         toast.success('Page published');
+      }
+
+      if (action === 'slug') {
+        const response = await fetch(`/api/pages/${page.id}/slug`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: chosenSlug }),
+        });
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error ?? 'Could not change the link');
+        }
+
+        const result = (await response.json()) as { shortCode: string; url: string };
+        setStatus((prev) => ({ ...prev, shortCode: result.shortCode, publishedUrl: result.url }));
+        setSlugInput(result.shortCode);
+        toast.success('Link updated. The old link still works.');
       }
 
       if (action === 'unpublish') {
@@ -322,6 +362,32 @@ export function PageEditor({ page }: PageEditorProps) {
           )}
 
           <div className="space-y-2">
+            <SlugField
+              kind="page"
+              id="page-slug"
+              label="Custom link name (optional)"
+              value={slugInput}
+              onChange={setSlugInput}
+              currentSlug={status.shortCode}
+              excludeId={page.id}
+              prefix={buildPublishedUrl('')}
+              placeholder="e.g. ana-memorial"
+              hint={
+                status.shortCode
+                  ? 'Change it to give the page a nicer link. The old link keeps working.'
+                  : 'Leave blank for a random link. Letters, numbers and hyphens; you can rename it later.'
+              }
+              renameNote="Links you already shared or printed still work."
+              onStatusChange={setSlugStatus}
+            />
+            {status.shortCode && slugChanged && (
+              <Button type="button" size="sm" variant="outline" disabled={isBusy} onClick={requestSlugChange}>
+                Change link
+              </Button>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="page-expiry">Expires (optional)</Label>
             <Input
               id="page-expiry"
@@ -348,7 +414,7 @@ export function PageEditor({ page }: PageEditorProps) {
                 </Button>
               </>
             ) : (
-              <Button type="button" disabled={isBusy} onClick={() => setPendingAction('publish')}>
+              <Button type="button" disabled={isBusy} onClick={requestPublish}>
                 Publish
               </Button>
             )}
@@ -375,6 +441,16 @@ export function PageEditor({ page }: PageEditorProps) {
         pendingLabel="Publishing…"
         isPending={isBusy}
         onConfirm={() => runAction('publish')}
+      />
+      <ConfirmDialog
+        open={pendingAction === 'slug'}
+        onOpenChange={(open) => !open && setPendingAction(null)}
+        title="Change this page's link?"
+        description={`The link changes from /p/${status.shortCode} to /p/${chosenSlug}. The old link keeps working, so anything already shared or printed still opens this page.`}
+        confirmLabel="Change link"
+        pendingLabel="Changing…"
+        isPending={isBusy}
+        onConfirm={() => runAction('slug')}
       />
       <ConfirmDialog
         open={pendingAction === 'unpublish'}

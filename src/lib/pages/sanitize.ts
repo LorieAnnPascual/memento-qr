@@ -70,21 +70,45 @@ export function toVideoEmbedUrl(value: string | undefined): string {
   return '';
 }
 
+const VIDEO_EXTENSION = /\.(mp4|webm|mov)$/i;
+// "/media/<folder>/<file>.<ext>": one folder, one file, no dots-only or odd segments.
+const OWN_MEDIA_PATH = /^\/media\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\.(mp4|webm|mov)$/i;
+
 /**
- * A video uploaded to the Media library: only files in this project's own
- * storage bucket qualify, so a page can never make a visitor's browser load a
- * video from (or send a request to) an arbitrary site. Anything else returns ''.
+ * A video uploaded to the Media library. Two addresses qualify, and nothing else, so a
+ * page can never make a visitor's browser load a video from (or send a request to) an
+ * arbitrary site: the file in this project's own storage bucket (older uploads), or our
+ * own domain's `/media/...` address (new uploads), absolute with the app origin or a
+ * relative path starting with a single slash. Anything else returns ''.
  */
 export function safeHostedVideoUrl(value: string | undefined): string {
   const trimmed = (value ?? '').trim();
-  const storage = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!trimmed || !storage) return '';
+  if (!trimmed) return '';
+
+  // Relative own-domain path; "//host/..." would be another site, and the app never
+  // needs a backslash or encoded slash here.
+  if (trimmed.startsWith('/')) {
+    if (trimmed.startsWith('//')) return '';
+    const path = trimmed.split(/[?#]/)[0];
+    return OWN_MEDIA_PATH.test(path) ? path : '';
+  }
+
   try {
     const url = new URL(trimmed);
-    if (url.origin !== new URL(storage).origin) return '';
-    if (!url.pathname.startsWith('/storage/v1/object/public/uploads/')) return '';
-    if (!/\.(mp4|webm|mov)$/i.test(url.pathname)) return '';
-    return url.origin + url.pathname;
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
+
+    const storage = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (storage && url.origin === new URL(storage).origin) {
+      if (!url.pathname.startsWith('/storage/v1/object/public/uploads/')) return '';
+      if (!VIDEO_EXTENSION.test(url.pathname)) return '';
+      return url.origin + url.pathname;
+    }
+
+    const app = process.env.NEXT_PUBLIC_APP_URL;
+    if (app && url.origin === new URL(app).origin) {
+      return OWN_MEDIA_PATH.test(url.pathname) ? url.origin + url.pathname : '';
+    }
+    return '';
   } catch {
     return '';
   }

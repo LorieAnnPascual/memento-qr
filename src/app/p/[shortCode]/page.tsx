@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Render, type Data } from '@puckeditor/core';
 import { eq } from 'drizzle-orm';
 
@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { pageTemplates } from '@/lib/db/schema';
 import { puckConfig } from '@/components/pages/puck-config';
 import { normalizePageData } from '@/lib/pages/normalize';
+import { resolveAlias } from '@/lib/slugs/slugs';
 
 // The dashboard's global styles (heading font, paragraph width, root font
 // size) must not leak into a published page — it should look like its export.
@@ -18,13 +19,16 @@ const PAGE_RESET_CSS = `
   .published-page a { color: inherit; }
 `;
 
+/** The page behind a link. An old name of a renamed page finds it too (see `slug_aliases`). */
 async function getPage(shortCode: string) {
-  const [page] = await db
-    .select()
-    .from(pageTemplates)
-    .where(eq(pageTemplates.shortCode, shortCode))
-    .limit(1);
-  return page;
+  const code = shortCode.toLowerCase();
+  const [page] = await db.select().from(pageTemplates).where(eq(pageTemplates.shortCode, code)).limit(1);
+  if (page) return page;
+
+  const renamedTo = await resolveAlias('page', code);
+  if (!renamedTo) return undefined;
+  const [renamed] = await db.select().from(pageTemplates).where(eq(pageTemplates.id, renamedTo)).limit(1);
+  return renamed;
 }
 
 export async function generateMetadata({ params }: PageProps<'/p/[shortCode]'>): Promise<Metadata> {
@@ -48,6 +52,11 @@ export default async function PublishedPage({ params }: PageProps<'/p/[shortCode
   // Unpublished pages are indistinguishable from ones that never existed.
   if (!page || !page.isPublished) {
     notFound();
+  }
+
+  // Reached through an old name: send the visitor to the page's current address.
+  if (page.shortCode && page.shortCode !== shortCode.toLowerCase()) {
+    redirect(`/p/${page.shortCode}`);
   }
 
   if (page.expiresAt && new Date(page.expiresAt) < new Date()) {

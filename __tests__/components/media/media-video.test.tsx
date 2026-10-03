@@ -62,7 +62,7 @@ describe('MediaPickerButton', () => {
     await userEvent.click(await screen.findByText('tribute.mp4'));
 
     expect(screen.queryByText('logo.png')).not.toBeInTheDocument();
-    expect(onSelect).toHaveBeenCalledWith('https://s.example/tribute.mp4');
+    expect(onSelect).toHaveBeenCalledWith('https://s.example/tribute.mp4', expect.objectContaining({ fileName: 'tribute.mp4' }));
   });
 
   it('says so when there are no videos yet', async () => {

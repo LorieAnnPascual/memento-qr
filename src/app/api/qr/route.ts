@@ -6,8 +6,10 @@ import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { logActivity } from '@/lib/activity/log-activity';
 import { getOwnedFolder } from '@/lib/folders/get-owned-folder';
 import { recordDestinationChange } from '@/lib/qr/destination-history';
-import { CreateQRSchema } from '@/lib/qr/schemas';
+import { CreateQRSchema, INVALID_VIDEO_RESPONSE, VIDEO_MUST_BE_DYNAMIC_RESPONSE } from '@/lib/qr/schemas';
+import { playableVideoUrl } from '@/lib/qr/video-player';
 import { buildRedirectUrl, generateShortCode } from '@/lib/qr/short-code';
+import { checkRequestedSlug, isUniqueViolation, SLUG_TAKEN_RESPONSE } from '@/lib/slugs/slugs';
 import type { QRType } from '@/types/qr';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -83,30 +85,50 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Folder not found', code: 'FOLDER_NOT_FOUND' }, { status: 404 });
   }
 
-  const isDynamic = data.isDynamic ?? false;
-  const shortCode = isDynamic ? generateShortCode() : null;
+  // A video code is always dynamic (the video can be replaced without reprinting): refuse an
+  // explicit "static" instead of silently changing what was asked for.
+  if (data.qrType === 'video' && data.isDynamic === false) return VIDEO_MUST_BE_DYNAMIC_RESPONSE();
+  // ...and what it plays must be one of our own hosted videos, not any address.
+  if (data.qrType === 'video' && !playableVideoUrl(data.targetUrl ?? data.payload)) return INVALID_VIDEO_RESPONSE();
+  const isDynamic = data.qrType === 'video' ? true : (data.isDynamic ?? false);
 
-  const [created] = await db
-    .insert(qrCodes)
-    .values({
-      userId: user.profile.id,
-      name: data.name,
-      qrType: data.qrType,
-      // For a dynamic QR, the code must encode the stable redirect link, not
-      // the destination — otherwise the printed QR could never be repointed.
-      payload: shortCode ? buildRedirectUrl(shortCode) : data.payload,
-      payloadFields: data.payloadFields,
-      styleConfig: data.styleConfig,
-      isDynamic,
-      shortCode,
-      targetUrl: shortCode ? (data.targetUrl ?? data.payload) : null,
-      expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
-      scanLimit: data.scanLimit ?? null,
-      tags: data.tags,
-      notes: data.notes,
-      folderId: data.folderId ?? null,
-    })
-    .returning();
+  // A chosen link name (`/q/ana-memorial`) replaces the random one; static codes have no link.
+  let requestedSlug: string | null = null;
+  if (isDynamic) {
+    const requested = await checkRequestedSlug('qr', data.slug);
+    if (!requested.ok) return requested.response;
+    requestedSlug = requested.slug;
+  }
+  const shortCode = isDynamic ? (requestedSlug ?? generateShortCode()) : null;
+
+  let created: typeof qrCodes.$inferSelect;
+  try {
+    [created] = await db
+      .insert(qrCodes)
+      .values({
+        userId: user.profile.id,
+        name: data.name,
+        qrType: data.qrType,
+        // For a dynamic QR, the code must encode the stable redirect link, not
+        // the destination — otherwise the printed QR could never be repointed.
+        payload: shortCode ? buildRedirectUrl(shortCode) : data.payload,
+        payloadFields: data.payloadFields,
+        styleConfig: data.styleConfig,
+        isDynamic,
+        shortCode,
+        targetUrl: shortCode ? (data.targetUrl ?? data.payload) : null,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+        scanLimit: data.scanLimit ?? null,
+        tags: data.tags,
+        notes: data.notes,
+        folderId: data.folderId ?? null,
+      })
+      .returning();
+  } catch (error) {
+    // Two people picked the same link name at the same moment.
+    if (isUniqueViolation(error)) return SLUG_TAKEN_RESPONSE();
+    throw error;
+  }
 
   if (created.targetUrl) {
     await recordDestinationChange({

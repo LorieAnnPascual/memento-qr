@@ -12,6 +12,7 @@ export const QR_TYPES = [
   'event',
   'location',
   'social',
+  'video',
 ] as const;
 
 export type QRType = (typeof QR_TYPES)[number];
@@ -40,6 +41,8 @@ export function getQRTypeLabel(type: QRType): string {
       return 'Location';
     case 'social':
       return 'Social Media';
+    case 'video':
+      return 'Video';
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unknown QR type: ${_exhaustive}`);
@@ -71,6 +74,8 @@ export function getQRTypeDescription(type: QRType): string {
       return 'Drop a map pin';
     case 'social':
       return 'Link to a social profile';
+    case 'video':
+      return 'Play a video when scanned';
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unknown QR type: ${_exhaustive}`);
@@ -202,6 +207,13 @@ export interface SocialFormValues {
   links: SocialLinkFormValue[];
 }
 
+export interface VideoFormValues {
+  /** Own-domain address of the video in the Media library (stored as the dynamic target). */
+  videoUrl: string;
+  fileName: string;
+  fileSize: number;
+}
+
 export interface QRFormValuesMap {
   url: UrlFormValues;
   text: TextFormValues;
@@ -214,6 +226,7 @@ export interface QRFormValuesMap {
   event: EventFormValues;
   location: LocationFormValues;
   social: SocialFormValues;
+  video: VideoFormValues;
 }
 
 export const QR_FORM_DEFAULTS: QRFormValuesMap = {
@@ -248,4 +261,5 @@ export const QR_FORM_DEFAULTS: QRFormValuesMap = {
   event: { title: '', startDate: '', endDate: '', location: '', description: '' },
   location: { latitude: '', longitude: '', label: '', mapsUrl: '' },
   social: { url: '', links: [] },
+  video: { videoUrl: '', fileName: '', fileSize: 0 },
 };

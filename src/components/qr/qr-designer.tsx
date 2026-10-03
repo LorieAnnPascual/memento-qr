@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { toast } from 'sonner';
@@ -28,6 +28,8 @@ import { QRPreview } from './qr-preview';
 import { QRStyleEditor } from './qr-style-editor';
 import { QRTemplatePicker } from './qr-template-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SlugField, type SlugStatus } from '@/components/slugs/slug-field';
+import { normalizeSlug } from '@/lib/slugs/slug';
 import { QRTypeSelector } from './qr-type-selector';
 import { UrlForm } from './qr-type-forms/url-form';
 import { TextForm } from './qr-type-forms/text-form';
@@ -40,6 +42,7 @@ import { WhatsAppForm } from './qr-type-forms/whatsapp-form';
 import { EventForm } from './qr-type-forms/event-form';
 import { LocationForm } from './qr-type-forms/location-form';
 import { SocialForm } from './qr-type-forms/social-form';
+import { VideoForm } from './qr-type-forms/video-form';
 
 /** Converts a stored UTC timestamp into the local-time string a `datetime-local` input expects. */
 function toDateTimeLocalValue(date: Date | string | null): string {
@@ -53,10 +56,13 @@ function QRTypeForm({
   type,
   formValues,
   onChangeValues,
+  children,
 }: {
   type: QRType;
   formValues: QRFormValuesMap;
   onChangeValues: <T extends QRType>(type: T, values: QRFormValuesMap[T]) => void;
+  /** Extra fields shown under the type's own form (the video type puts the link name here). */
+  children?: ReactNode;
 }) {
   switch (type) {
     case 'url':
@@ -85,6 +91,12 @@ function QRTypeForm({
       );
     case 'social':
       return <SocialForm values={formValues.social} onChange={(v) => onChangeValues('social', v)} />;
+    case 'video':
+      return (
+        <VideoForm values={formValues.video} onChange={(v) => onChangeValues('video', v)}>
+          {children}
+        </VideoForm>
+      );
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unknown QR type: ${_exhaustive}`);
@@ -123,11 +135,19 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
-  const [isDynamic, setIsDynamic] = useState(initialQrCode?.isDynamic ?? false);
+  const [dynamicChoice, setDynamicChoice] = useState(initialQrCode?.isDynamic ?? false);
+  // A video code can only ever be dynamic, so the video can be replaced without reprinting.
+  const isDynamic = dynamicChoice || type === 'video';
   const [isPaused, setIsPaused] = useState(initialQrCode?.isPaused ?? false);
   const [expiresAt, setExpiresAt] = useState(() => toDateTimeLocalValue(initialQrCode?.expiresAt ?? null));
   const [scanLimit, setScanLimit] = useState(initialQrCode?.scanLimit?.toString() ?? '');
   const [copied, setCopied] = useState(false);
+  // The link name a person chose for a dynamic code (`/q/ana-memorial`). Blank = keep / random.
+  const [slug, setSlug] = useState(initialQrCode?.shortCode ?? '');
+  const [slugStatus, setSlugStatus] = useState<SlugStatus>('idle');
+  const chosenSlug = normalizeSlug(slug);
+  const renamingTo =
+    isDynamic && initialQrCode?.shortCode && chosenSlug && chosenSlug !== initialQrCode.shortCode ? chosenSlug : null;
 
   const contentPayload = useMemo(() => {
     try {
@@ -149,6 +169,28 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
     if (type === 'social') return formValues.social.links.filter((link) => link.url.trim());
     return [];
   }, [type, formValues]);
+
+  // For a video code this sits in the Content tab, under the video; for the others, in the Dynamic QR tab.
+  const slugField = isDynamic ? (
+    <SlugField
+      kind="qr"
+      id="qr-slug"
+      label="Custom link name (optional)"
+      value={slug}
+      onChange={setSlug}
+      currentSlug={initialQrCode?.shortCode ?? null}
+      excludeId={initialQrCode?.id}
+      prefix={buildRedirectUrl('')}
+      placeholder="e.g. ana-memorial"
+      hint={
+        initialQrCode?.shortCode
+          ? 'Change it to give the code a nicer link. The old link keeps working.'
+          : 'Leave blank for a random link. Letters, numbers and hyphens; you can rename it later.'
+      }
+      renameNote="Codes already printed with it still scan; download the code again to use the new link."
+      onStatusChange={setSlugStatus}
+    />
+  ) : null;
 
   function handleChangeValues<T extends QRType>(nextType: T, values: QRFormValuesMap[T]): void {
     setFormValues((prev) => ({ ...prev, [nextType]: values }));
@@ -180,6 +222,14 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
       toast.error('Fill in the QR content before saving.');
       return;
     }
+    if (isDynamic && slugStatus === 'problem') {
+      toast.error(type === 'video' ? 'Fix the link name before saving.' : 'Fix the link name on the Dynamic QR tab before saving.');
+      return;
+    }
+    if (isDynamic && slugStatus === 'checking') {
+      toast.error('Still checking the link name. Try again in a moment.');
+      return;
+    }
     setShowSaveConfirm(true);
   }
 
@@ -196,6 +246,7 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
         payloadFields: formValues[type],
         styleConfig: style,
         isDynamic,
+        ...(isDynamic && chosenSlug && { slug: chosenSlug }),
         folderId: folderId === NO_FOLDER ? null : folderId,
         ...(initialQrCode && { isPaused }),
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
@@ -212,6 +263,13 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
       );
 
       if (!response.ok) {
+        // A link name that is not allowed or was just taken: say so instead of a generic failure.
+        const failure = (await response.json().catch(() => null)) as { error?: string; code?: string } | null;
+        if (failure?.code === 'SLUG_TAKEN' || failure?.code === 'INVALID_SLUG') {
+          toast.error(failure.error ?? 'That link name cannot be used.');
+          setShowSaveConfirm(false);
+          return;
+        }
         throw new Error('Request failed');
       }
 
@@ -304,7 +362,9 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
               <CardDescription>Fill in the details for this QR code.</CardDescription>
             </CardHeader>
             <CardContent>
-              <QRTypeForm type={type} formValues={formValues} onChangeValues={handleChangeValues} />
+              <QRTypeForm type={type} formValues={formValues} onChangeValues={handleChangeValues}>
+                {slugField}
+              </QRTypeForm>
             </CardContent>
           </Card>
           </TabsContent>
@@ -319,12 +379,25 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-2">
-                <Switch id="qr-dynamic" checked={isDynamic} onCheckedChange={setIsDynamic} />
+                <Switch
+                  id="qr-dynamic"
+                  checked={isDynamic}
+                  disabled={type === 'video'}
+                  aria-describedby={type === 'video' ? 'qr-dynamic-video-note' : undefined}
+                  onCheckedChange={setDynamicChoice}
+                />
                 <Label htmlFor="qr-dynamic">Make this dynamic</Label>
               </div>
+              {type === 'video' && (
+                <p id="qr-dynamic-video-note" className="text-xs text-muted-foreground">
+                  Video codes are always dynamic so the video can be replaced without reprinting.
+                </p>
+              )}
 
               {isDynamic && (
                 <div className="space-y-4 border-t pt-4">
+                  {type !== 'video' && slugField}
+
                   {shortLink ? (
                     <div className="space-y-2">
                       <Label>Short link</Label>
@@ -457,9 +530,11 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
         onOpenChange={setShowSaveConfirm}
         title={initialQrCode ? 'Save changes to this QR code?' : 'Save this QR code?'}
         description={
-          initialQrCode
-            ? 'This will overwrite the saved version with your current changes.'
-            : `"${name}" will be added to your QR codes.`
+          renamingTo
+            ? `The link changes from /q/${initialQrCode?.shortCode} to /q/${renamingTo}. Codes already printed with the old link keep working, but download the QR code again to use the new link.`
+            : initialQrCode
+              ? 'This will overwrite the saved version with your current changes.'
+              : `"${name}" will be added to your QR codes.`
         }
         confirmLabel={initialQrCode ? 'Save changes' : 'Save QR code'}
         pendingLabel="Saving…"

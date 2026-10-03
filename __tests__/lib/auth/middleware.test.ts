@@ -92,7 +92,7 @@ describe('updateSession', () => {
     },
   );
 
-  it.each(['/q/abc234', '/p/abc234', '/api/cron/keep-alive'])('serves %s without ever asking Supabase who is there', async (path) => {
+  it.each(['/q/abc234', '/p/abc234', '/media/folder/file.mp4', '/api/cron/keep-alive'])('serves %s without ever asking Supabase who is there', async (path) => {
     const { updateSession } = await import('@/lib/auth/middleware');
 
     const response = await updateSession(request(path));

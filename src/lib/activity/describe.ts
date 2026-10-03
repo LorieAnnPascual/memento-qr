@@ -35,6 +35,8 @@ export function describeActivity(entry: DescribableActivity): string {
     case 'qr.created':
       return `created the QR code ${name}`;
     case 'qr.updated': {
+      const newLink = detail<string>(entry.details, 'linkRenamedTo');
+      if (newLink) return `renamed the link of the QR code ${name} to /q/${newLink}`;
       const paused = detail<boolean>(entry.details, 'isPaused');
       if (paused === true) return `paused the QR code ${name}`;
       if (paused === false) return `resumed the QR code ${name}`;
@@ -64,8 +66,10 @@ export function describeActivity(entry: DescribableActivity): string {
       return `deleted the folder ${name}`;
     case 'page.created':
       return `created the page ${name}`;
-    case 'page.updated':
-      return `edited the page ${name}`;
+    case 'page.updated': {
+      const newLink = detail<string>(entry.details, 'linkRenamedTo');
+      return newLink ? `renamed the link of the page ${name} to /p/${newLink}` : `edited the page ${name}`;
+    }
     case 'page.deleted':
       return `deleted the page ${name}`;
     case 'page.published':

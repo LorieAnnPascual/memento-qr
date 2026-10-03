@@ -57,6 +57,10 @@ export function getFormValidationError<T extends QRType>(type: T, values: QRForm
       const hasLink = v.links.some((link) => link.url.trim()) || v.url.trim();
       return hasLink ? null : 'Enter at least one profile URL.';
     }
+    case 'video': {
+      const v = values as QRFormValuesMap['video'];
+      return v.videoUrl.trim() ? null : 'Upload or choose a video first.';
+    }
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unknown QR type: ${_exhaustive}`);

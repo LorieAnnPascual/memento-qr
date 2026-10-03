@@ -140,12 +140,30 @@ describe('POST /api/upload/video/complete', () => {
     arrange();
 
     const response = await complete({ path, fileName: 'My edit.mp4' });
-    const body = await response.json();
 
     expect(response.status).toBe(201);
-    expect(body.url).toBe(stored.publicUrl);
     expect(dbMock.insert).toHaveBeenCalledTimes(1);
     expect(storageMock.deleteFile).not.toHaveBeenCalled();
+  });
+
+  it('records the own-domain /media address, not the storage address, but reads the head from storage', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://memento-qr.vercel.app');
+    arrange();
+    const insertChain = chainable([{ id: 'file-1', publicUrl: 'x', storagePath: path }]);
+    const valuesSpy = vi.fn(() => insertChain);
+    insertChain.values = valuesSpy;
+    dbMock.insert.mockReturnValue(insertChain);
+
+    const response = await complete({ path, fileName: 'My edit.mp4' });
+    const body = await response.json();
+
+    expect(valuesSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ publicUrl: `https://memento-qr.vercel.app/media/${path}`, storagePath: path }),
+    );
+    expect(body.url).toBe(`https://memento-qr.vercel.app/media/${path}`);
+    expect(JSON.stringify(body.url)).not.toContain('s.example');
+    expect(storageMock.readStoredHead).toHaveBeenCalledWith(stored.publicUrl);
+    vi.unstubAllEnvs();
   });
 
   it('is safe to call twice for the same upload', async () => {

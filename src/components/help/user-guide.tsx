@@ -26,7 +26,7 @@ const SECTIONS: GuideSection[] = [
     title: 'Create a QR code',
     steps: [
       'Go to QR Codes → New QR code.',
-      'Give it a name, then pick what it holds: a website link, text, phone, SMS, email, WiFi, contact card, WhatsApp, event, location or social links.',
+      'Give it a name, then pick what it holds: a website link, text, phone, SMS, email, WiFi, contact card, WhatsApp, event, location, social links or a video.',
       'Fill in the details on the Content tab. The preview on the right updates as you type.',
       'Use the Layout tab to wrap the code in a printable card, and the Style tab for colors, dot shapes, a logo and templates.',
       'Click Save QR code and confirm. You stay on the page after saving.',
@@ -48,6 +48,24 @@ const SECTIONS: GuideSection[] = [
     tips: [
       'Only dynamic codes appear in Analytics.',
       'A paused, expired or fully used code shows a friendly message to anyone who scans it.',
+    ],
+  },
+  {
+    id: 'custom-links',
+    title: 'Custom link names',
+    intro:
+      'Instead of a random link like /q/k7x2mq, give a dynamic QR code or a published page a name of your own, like /q/ana-memorial or /p/ana-memorial, so the link looks personal and professional.',
+    steps: [
+      'QR codes: open the Dynamic QR tab, turn on Make this dynamic, and type a name under Custom link name. Pages: open Publish and use the same field.',
+      'Use letters, numbers and single hyphens, 3 to 30 characters. Spaces and capitals are tidied up for you as you type.',
+      'It says Available, or that the name is already taken. Leave it blank to get a random link.',
+      'To change a name later, edit the field and save. The page or code gets the new link, and the old link keeps working and forwards to it, so printed codes and links you already shared never break.',
+      'After renaming a QR code, download it again if you want the printed version to show the new link.',
+    ],
+    tips: [
+      'Shorter names make a cleaner QR code that scans better when printed small.',
+      'A name stays reserved after it is changed, so nobody else can take your old link.',
+      'QR link names and page link names are separate lists, so a page and a QR code can share the same name.',
     ],
   },
   {
@@ -106,6 +124,28 @@ const SECTIONS: GuideSection[] = [
       'A deleted video can keep playing for anyone who watched it recently for up to an hour, because copies are cached.',
     ],
     link: { href: '/media', label: 'Open Media' },
+  },
+  {
+    id: 'video-qr',
+    title: 'Make a video QR code',
+    intro:
+      'A video QR code plays a video you upload when someone scans it. The video opens right on the code’s own link, so there is no file to download and no YouTube needed.',
+    steps: [
+      'Go to QR Codes → New QR code and choose Video.',
+      'On the Content tab, click Upload video (MP4, WebM or MOV, up to 50 MB) or From media to reuse one you already uploaded. You see a preview with the file name and size.',
+      'Optionally type a custom link name right under the video, for example ana-memorial. Leave it blank for a random link.',
+      'Save, then download the code. The code’s link looks like https://memento-qr.vercel.app/q/ana-memorial and the video itself is served from https://memento-qr.vercel.app/media/..., never from another site.',
+      'To change the video later, open the code, upload or choose a different one and save. The printed code stays the same.',
+    ],
+    tips: [
+      'Video codes are always dynamic, so the Make this dynamic switch is locked on. You can still pause the code, give it an expiry date or a scan limit.',
+      'If you rename the link, the old link keeps playing the video, so printed codes never break.',
+      'If you delete the video from Media, every video code using it stops working (the scan shows a "not found" message) until you choose another video.',
+      'Videos older than this feature keep their original storage address in Media; their codes still work, and new uploads use the app’s own address.',
+      'A video is sent through the app’s server, so it counts toward the free hosting traffic limits, and a very long video on a very slow phone connection may not finish loading. Keep videos short and exported at 720p or 1080p.',
+      'A deleted video can keep playing for anyone who watched it recently for up to an hour, because copies are cached.',
+    ],
+    link: { href: '/qr/new', label: 'New QR code' },
   },
   {
     id: 'team',

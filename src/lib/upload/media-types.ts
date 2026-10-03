@@ -62,3 +62,39 @@ export function bytesFitExtension(found: VideoKind | null, extension: VideoKind)
   if (found === null) return false;
   return extension === 'webm' ? found === 'webm' : found !== 'webm';
 }
+
+/**
+ * The address a stored video is served from: our own domain (`/media/...`, forwarded to
+ * storage by a rewrite in next.config.ts) instead of the storage provider's address.
+ * `storagePath` is "<profile id>/<name>.<ext>" inside the uploads bucket.
+ */
+export function buildMediaUrl(storagePath: string): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  return `${appUrl.replace(/\/$/, '')}/media/${storagePath}`;
+}
+
+const STORAGE_UPLOADS_MARKER = '/storage/v1/object/public/uploads/';
+const OWN_MEDIA_MARKER = '/media/';
+
+/** "<folder>/<file>" inside the uploads bucket for either kind of address, or null. */
+export function storagePathFromMediaUrl(url: string): string | null {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  for (const marker of [STORAGE_UPLOADS_MARKER, OWN_MEDIA_MARKER]) {
+    if (pathname.startsWith(marker)) {
+      const rest = pathname.slice(marker.length);
+      return /^[^/]+\/[^/]+$/.test(rest) ? rest : null;
+    }
+  }
+  return null;
+}
+
+/** Older uploads carry the storage provider's address; this gives the own-domain one (anything else is returned unchanged). */
+export function toOwnMediaUrl(url: string): string {
+  const path = storagePathFromMediaUrl(url);
+  return path ? buildMediaUrl(path) : url;
+}

@@ -11,6 +11,25 @@ const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_APP_VERSION: version },
   // No need to tell every visitor which framework this is.
   poweredByHeader: false,
+  // Uploaded videos are served from our own domain (/media/<folder>/<file>.mp4) and forwarded
+  // to the public uploads bucket, so the storage provider's address never reaches a visitor.
+  // Only that bucket and only video extensions; Range requests pass through for seeking.
+  async rewrites() {
+    const storage = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!storage) return [];
+    let origin: string;
+    try {
+      origin = new URL(storage).origin;
+    } catch {
+      return [];
+    }
+    return [
+      {
+        source: '/media/:folder([A-Za-z0-9_-]+)/:file([A-Za-z0-9_-]+\\.(?:mp4|webm|mov))',
+        destination: `${origin}/storage/v1/object/public/uploads/:folder/:file`,
+      },
+    ];
+  },
   async headers() {
     return [
       {

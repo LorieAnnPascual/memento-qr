@@ -8,6 +8,8 @@ import { getOwnedPage } from '@/lib/pages/get-owned-page';
 import { buildPublishedUrl } from '@/lib/pages/page-status';
 import { parseExpiry, PublishPageSchema } from '@/lib/pages/schemas';
 import { generateShortCode } from '@/lib/qr/short-code';
+import { savePageShortCode } from '@/lib/pages/page-slug';
+import { checkRequestedSlug, isUniqueViolation, SLUG_TAKEN_RESPONSE } from '@/lib/slugs/slugs';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -43,19 +45,22 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
   const stillValid = page.expiresAt && new Date(page.expiresAt) > new Date() ? page.expiresAt : null;
   const expiresAt = expiry.value === undefined ? stillValid : expiry.value;
 
-  // Reuse the short code so a re-published page keeps its URL.
-  const shortCode = page.shortCode ?? generateShortCode();
+  // A link name chosen by the team wins; otherwise reuse the existing one so a re-published
+  // page keeps its URL, or make a random one the first time.
+  const requested = await checkRequestedSlug('page', parsed.data.slug, id);
+  if (!requested.ok) return requested.response;
+  const shortCode = requested.slug ?? page.shortCode ?? generateShortCode();
 
-  await db
-    .update(pageTemplates)
-    .set({
+  try {
+    await savePageShortCode(id, page.shortCode, shortCode, {
       isPublished: true,
-      shortCode,
       publishedAt: page.publishedAt ?? new Date(),
       expiresAt,
-      updatedAt: new Date(),
-    })
-    .where(eq(pageTemplates.id, id));
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) return SLUG_TAKEN_RESPONSE();
+    throw error;
+  }
 
   await logActivity({
     userId: user.profile.id,
@@ -63,7 +68,10 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
     entityType: 'page',
     entityId: id,
     entityName: page.name,
-    details: { expiresAt: expiresAt?.toISOString() ?? null },
+    details: {
+      expiresAt: expiresAt?.toISOString() ?? null,
+      ...(page.shortCode && page.shortCode !== shortCode && { linkRenamedFrom: page.shortCode, linkRenamedTo: shortCode }),
+    },
   });
 
   return Response.json({

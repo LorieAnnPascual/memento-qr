@@ -33,7 +33,11 @@ export const UpdatePageSchema = z.object({
 export const PublishPageSchema = z.object({
   /** Omit to keep the current expiry; null to remove it; ISO string to set it. */
   expiresAt: z.string().nullable().optional(),
+  /** A link name chosen by the team (`/p/ana-memorial`); blank or omitted keeps the current one. */
+  slug: z.string().max(100).optional(),
 });
+
+export const SlugPageSchema = z.object({ slug: z.string().min(1).max(100) });
 
 export const ExpiryPageSchema = z.object({
   expiresAt: z.string().nullable(),

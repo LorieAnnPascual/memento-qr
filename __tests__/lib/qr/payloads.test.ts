@@ -478,6 +478,12 @@ describe('QR Payload Builders', () => {
       ).toBe('https://instagram.com/memento');
     });
 
+    it('dispatches video to its own-domain video URL (the stored target)', () => {
+      expect(
+        buildPayloadForType('video', { videoUrl: ' https://app.example/media/p/f.mp4 ', fileName: 'f.mp4', fileSize: 1 }),
+      ).toBe('https://app.example/media/p/f.mp4');
+    });
+
     it('throws for an unknown type', () => {
       expect(() =>
         buildPayloadForType('bogus' as unknown as 'url', { url: '' }),

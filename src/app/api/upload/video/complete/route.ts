@@ -5,7 +5,13 @@ import { db } from '@/lib/db';
 import { uploadedFiles } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { deleteFile, getStoredObject, readStoredHead } from '@/lib/storage';
-import { MAX_VIDEO_BYTES, VIDEO_MIME_FOR_KIND, bytesFitExtension, videoKindForMime } from '@/lib/upload/media-types';
+import {
+  MAX_VIDEO_BYTES,
+  VIDEO_MIME_FOR_KIND,
+  buildMediaUrl,
+  bytesFitExtension,
+  videoKindForMime,
+} from '@/lib/upload/media-types';
 import { sniffVideo } from '@/lib/upload/sniff-video';
 
 const CompleteSchema = z.object({
@@ -64,6 +70,10 @@ export async function POST(request: Request): Promise<Response> {
       return reject(path, 'That file is not a valid video', 'UNSUPPORTED_FILE_TYPE');
     }
 
+    // The library (and every page and QR code made from it) addresses the video on our own
+    // domain; storage's address is only used above to read the file back.
+    const ownUrl = buildMediaUrl(path);
+
     const displayName = parsed.data.fileName.replace(/[\\/\u0000-\u001f]/g, '_').slice(0, 200);
     const [record] = await db
       .insert(uploadedFiles)
@@ -73,11 +83,11 @@ export async function POST(request: Request): Promise<Response> {
         fileSize: stored.size,
         mimeType: VIDEO_MIME_FOR_KIND[extension],
         storagePath: path,
-        publicUrl: stored.publicUrl,
+        publicUrl: ownUrl,
       })
       .returning();
 
-    return Response.json({ ...record, url: stored.publicUrl }, { status: 201 });
+    return Response.json({ ...record, url: ownUrl }, { status: 201 });
   } catch (error) {
     console.error('Video upload complete error:', error);
     return Response.json({ error: 'Failed to finish the upload', code: 'UPLOAD_FAILED' }, { status: 500 });

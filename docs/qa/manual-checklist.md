@@ -16,6 +16,8 @@ Use at least one iPhone and one Android phone.
 - [ ] Download a **2048px / high-res SVG**, print it small (about 3 cm) and scan it
 - [ ] Dynamic code: scan → lands on the target. Change the target in the app, scan again → new target
 - [ ] Pause it in the app, scan → friendly "paused" page. Resume → works again
+- [ ] Custom link name: make a dynamic code with a name (e.g. ana-memorial), print it, scan it. Rename it in the app, scan the **old printout** again: it must still open the same place
+- [ ] A page published at a custom link opens on a phone, and its old link (after a rename) forwards to the new one
 
 ## 2. Published pages on real phones (10 min)
 - [ ] Open a published page link on an iPhone (Safari) and an Android phone (Chrome): looks right, text readable, no sideways scrolling
@@ -25,6 +27,14 @@ Use at least one iPhone and one Android phone.
 - [ ] Uploaded WebM: note whether it plays on the oldest iPhone available (it may not; MP4 is the safe choice)
 - [ ] A real edited video near the 50 MB limit uploads on the office connection and on mobile data; the progress bar moves and it appears under Media
 - [ ] Open the **exported .html file** in Chrome, Firefox and Safari: matches the published page
+
+### Video QR codes
+- [ ] Create a Video QR code (upload a real edited MP4), print or show it on a screen, and scan it with an iPhone camera (Safari) and an Android phone (Chrome): the video plays on the same link (`/q/...`) with sound, goes full screen, and the address bar never shows supabase.co
+- [ ] Seeking works on both phones: drag the progress bar to the middle of the video and it jumps without restarting (Range requests through the `/media/` rewrite)
+- [ ] Rename the code's link name, scan the **old** printed code again: it still plays the video
+- [ ] Pause the code: the scan shows the paused message; resume it and it plays again
+- [ ] Delete the video from Media: scanning the code shows the "not found" message (not an error page); after an hour the old copy is gone from the cache
+- [ ] A video near 50 MB on a slow mobile connection (try 3G throttling or one bar of signal): note whether it finishes loading. Vercel proxies the file, so a very slow download may be cut off
 
 ## 3. Other browsers (15 min)
 Firefox (desktop), Safari (macOS): sign in, create + save a QR, download PNG/SVG, open the page editor, publish a page.

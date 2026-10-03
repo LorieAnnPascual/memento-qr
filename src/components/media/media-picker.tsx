@@ -10,8 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { isVideoMime } from '@/lib/upload/media-types';
 
 interface MediaPickerButtonProps {
-  /** Called with the chosen image's public URL. */
-  onSelect: (url: string) => void;
+  /** Called with the chosen file's public URL, and the library record it came from. */
+  onSelect: (url: string, file: UploadedFile) => void;
   disabled?: boolean;
   label?: string;
   /** Which uploads to offer. Images by default, so a video can never end up in an image field. */
@@ -66,7 +66,7 @@ export function MediaPickerButton({ onSelect, disabled, label = 'Choose from med
                       type="button"
                       className="w-full rounded-lg border p-2 text-left transition-colors hover:border-primary hover:bg-muted focus-visible:outline-2"
                       onClick={() => {
-                        onSelect(file.publicUrl);
+                        onSelect(file.publicUrl, file);
                         setOpen(false);
                       }}
                     >

@@ -16,7 +16,20 @@ function storageOrigin(): string | null {
 
 const origin = storageOrigin();
 const MEDIA_SOURCES_SELF = `media-src 'self'${origin ? ` ${origin}` : ''}`;
-const MEDIA_SOURCES_ONLY = origin ? `media-src ${origin}` : "media-src 'none'";
+
+/** Where uploaded videos are addressed from: our own domain (/media/...), see next.config.ts. */
+function appOrigin(): string | null {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_APP_URL ?? '').origin;
+  } catch {
+    return null;
+  }
+}
+
+// A downloaded page has no origin of its own, so it names both addresses a hosted video can have.
+const standaloneMediaOrigins = [origin, appOrigin()].filter((value): value is string => Boolean(value));
+const MEDIA_SOURCES_ONLY =
+  standaloneMediaOrigins.length > 0 ? `media-src ${[...new Set(standaloneMediaOrigins)].join(' ')}` : "media-src 'none'";
 
 /**
  * Header policy for the live /p/[shortCode] page. It is a Next.js page, so it

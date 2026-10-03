@@ -119,6 +119,25 @@ describe('uploaded videos', () => {
     expect(html).not.toContain('<iframe');
   });
 
+  it('plays a video addressed on our own domain (/media/) with a native player', () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://memento-qr.vercel.app');
+    const own = 'https://memento-qr.vercel.app/media/abc/clip.mp4';
+
+    const html = exportToHTML(pageWith('VideoEmbed', { url: '', file: own }), 'T');
+
+    expect(html).toContain('<video');
+    expect(html).toContain(`src="${own}"`);
+  });
+
+  it('refuses a /media/ video on some other site', () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://memento-qr.vercel.app');
+
+    const html = exportToHTML(pageWith('VideoEmbed', { file: 'https://evil.example/media/abc/clip.mp4' }), 'T');
+
+    expect(html).not.toContain('<video');
+    expect(html).not.toContain('evil.example');
+  });
+
   it('uses a cover image as the poster', () => {
     const html = exportToHTML(pageWith('VideoEmbed', { file: HOSTED, posterUrl: 'https://a.com/cover.jpg' }), 'T');
 

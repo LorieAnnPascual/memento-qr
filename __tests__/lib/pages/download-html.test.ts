@@ -85,10 +85,20 @@ describe('page CSPs and uploaded videos', () => {
 
   it('allows no outside media when the storage address is unknown', async () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', '');
     vi.resetModules();
     const csp = await import('@/lib/pages/csp');
 
     expect(csp.PUBLIC_PAGE_CSP).toContain("media-src 'self'");
     expect(csp.STANDALONE_PAGE_CSP).toContain("media-src 'none'");
+  });
+
+  it('lets a downloaded page play videos addressed on our own domain too', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://proj.supabase.co');
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://memento-qr.vercel.app/');
+    vi.resetModules();
+    const csp = await import('@/lib/pages/csp');
+
+    expect(csp.STANDALONE_PAGE_CSP).toContain('media-src https://proj.supabase.co https://memento-qr.vercel.app;');
   });
 });

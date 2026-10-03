@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 import { chainable, createDbMock } from '../helpers/db-mock';
@@ -199,6 +199,85 @@ describe('PUT /api/qr/[id]', () => {
     expect(capturedSet.isDynamic).toBe(false);
     expect(capturedSet.targetUrl).toBeNull();
     expect(capturedSet.payload).toBe('https://destination.example.com');
+  });
+});
+
+describe('PUT /api/qr/[id] for a video code', () => {
+  const existingVideo = {
+    id: 'qr-1',
+    qrType: 'video',
+    isDynamic: true,
+    shortCode: 'abc123',
+    targetUrl: 'http://localhost:3000/media/p/old.mp4',
+    payload: 'http://localhost:3000/q/abc123',
+  };
+
+  beforeEach(() => {
+    dbMock.select.mockReset();
+    dbMock.update.mockReset();
+    getCurrentUserMock.mockReset();
+    getCurrentUserMock.mockResolvedValue(AUTHED_USER);
+    dbMock.select.mockReturnValue(chainable([existingVideo]));
+  });
+
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000');
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('refuses to point it at a video that is not one of ours (INVALID_VIDEO) and writes nothing', async () => {
+    const { PUT } = await import('@/app/api/qr/[id]/route');
+
+    const response = await PUT(
+      new NextRequest('http://localhost:3000/api/qr/qr-1', {
+        method: 'PUT',
+        body: JSON.stringify({ payload: 'https://evil.example/clip.mp4' }),
+      }),
+      { params },
+    );
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe('INVALID_VIDEO');
+    expect(dbMock.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses to make it static with VIDEO_MUST_BE_DYNAMIC and writes nothing', async () => {
+    const { PUT } = await import('@/app/api/qr/[id]/route');
+
+    const response = await PUT(
+      new NextRequest('http://localhost:3000/api/qr/qr-1', { method: 'PUT', body: JSON.stringify({ isDynamic: false }) }),
+      { params },
+    );
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe('VIDEO_MUST_BE_DYNAMIC');
+    expect(dbMock.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps it dynamic and swaps the video behind the same link', async () => {
+    let capturedSet: Record<string, unknown> = {};
+    dbMock.update.mockReturnValue({
+      set: (v: Record<string, unknown>) => {
+        capturedSet = v;
+        return chainable([{ id: 'qr-1', ...v }]);
+      },
+    });
+    const { PUT } = await import('@/app/api/qr/[id]/route');
+
+    const response = await PUT(
+      new NextRequest('http://localhost:3000/api/qr/qr-1', {
+        method: 'PUT',
+        body: JSON.stringify({ payload: 'http://localhost:3000/media/p/new.mp4', name: 'Renamed' }),
+      }),
+      { params },
+    );
+
+    expect(response.status).toBe(200);
+    expect(capturedSet.isDynamic).toBe(true);
+    expect(capturedSet.shortCode).toBe('abc123');
+    expect(capturedSet.targetUrl).toBe('http://localhost:3000/media/p/new.mp4');
   });
 });
 

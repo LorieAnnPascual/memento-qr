@@ -5,6 +5,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -188,6 +189,28 @@ export const pageTemplates = pgTable(
 );
 
 // ============================================================
+// OLD LINK NAMES (a renamed /q/ or /p/ link keeps working)
+// ============================================================
+// When someone renames a custom link, the name it had before is recorded here and
+// forwards to the same QR code or page, so printed codes and shared links never break.
+// A name is unique within its kind ('qr' = /q/..., 'page' = /p/...).
+export const slugAliases = pgTable(
+  'slug_aliases',
+  {
+    kind: text('kind').notNull(), // 'qr' | 'page'
+    code: text('code').notNull(),
+    qrCodeId: uuid('qr_code_id').references(() => qrCodes.id, { onDelete: 'cascade' }),
+    pageId: uuid('page_id').references(() => pageTemplates.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.kind, table.code] }),
+    index('idx_slug_aliases_qr_code_id').on(table.qrCodeId),
+    index('idx_slug_aliases_page_id').on(table.pageId),
+  ],
+);
+
+// ============================================================
 // SCAN EVENTS (for dynamic QR analytics)
 // ============================================================
 export const scanEvents = pgTable(
@@ -269,6 +292,7 @@ export const activityLog = pgTable(
 );
 
 export type QRDestinationHistoryEntry = typeof qrDestinationHistory.$inferSelect;
+export type SlugAlias = typeof slugAliases.$inferSelect;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
 export type QRTemplate = typeof qrTemplates.$inferSelect;

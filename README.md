@@ -21,6 +21,12 @@ Live site: <https://memento-qr.vercel.app>
 
 ## Latest improvements
 
+### Unreleased
+- **Custom link names**: give a dynamic QR code or a published page a name of your own (`/q/ana-memorial`, `/p/ana-memorial`) instead of a random code. Live "available / taken" check, 3 to 30 letters, numbers and hyphens. Renaming keeps the old link working (it forwards to the new one), so printed codes and shared links never break. New table `slug_aliases` (migration 0005).
+- **Video QR codes**: a new QR type that plays an uploaded video when scanned. Upload in the designer (or pick from Media), give it a custom link name, and the video plays right on `/q/<name>` in a clean full-screen player (no redirect to a file). Video codes are always dynamic, so the video can be replaced without reprinting; the server refuses to make one static (`VIDEO_MUST_BE_DYNAMIC`).
+- **Videos on our own domain**: new uploads are addressed `https://memento-qr.vercel.app/media/<folder>/<file>.mp4` (a rewrite to the storage bucket, video files only, seeking works) instead of the supabase.co address. Older uploads keep their original address. Deleting a video from Media also switches off the video QR codes that use it.
+- Caveats: the file is proxied through Vercel, so it counts toward Vercel and Supabase bandwidth, and a 50 MB video on a very slow connection may not finish loading (tested locally with `next start`, not against Vercel itself). A deleted video can stay cached for up to an hour.
+
 ### v1.4.0
 - **Video hosting**: upload edited videos (MP4, WebM, MOV, up to 50 MB) to the Media library, see them play there, copy their link, and use them in the page builder's video block (with an optional cover image). Videos upload straight to storage with a progress bar, then the server checks the file's real bytes. The Media page shows how much of the 1 GB free storage is used.
 
@@ -84,7 +90,7 @@ End-to-end tests seed test data into the connected database (`pnpm db:seed`) and
 
 ## Deploying
 
-Deployed on Vercel from `main`. Set the environment variables from `.env.example`; use Supabase's transaction pooler (port 6543) for `DATABASE_URL`. Two daily crons (`vercel.json`) keep the free Supabase project awake and check dynamic QR links (both need `CRON_SECRET`). Functions run in `hnd1` (Tokyo) next to the database. Database changes are applied with the SQL files in `src/lib/db/migrations/` (or `pnpm db:push`); apply any new one **before** deploying code that uses it (0003 shared workspace and handoff, 0004 history, purpose and link health). Run `pnpm storage:configure` once so the storage bucket accepts videos (a new project's bucket defaults to a much smaller limit); Supabase's free plan still caps a single file at 50 MB and total storage at 1 GB, and bandwidth is limited too, so heavily watched videos can use it up. Before going live, work through `docs/qa/manual-checklist.md`.
+Deployed on Vercel from `main`. Set the environment variables from `.env.example`; use Supabase's transaction pooler (port 6543) for `DATABASE_URL`. Two daily crons (`vercel.json`) keep the free Supabase project awake and check dynamic QR links (both need `CRON_SECRET`). Functions run in `hnd1` (Tokyo) next to the database. Database changes are applied with the SQL files in `src/lib/db/migrations/` (or `pnpm db:push`); apply any new one **before** deploying code that uses it (0003 shared workspace and handoff, 0004 history, purpose and link health, 0005 custom link names). Run `pnpm storage:configure` once so the storage bucket accepts videos (a new project's bucket defaults to a much smaller limit); Supabase's free plan still caps a single file at 50 MB and total storage at 1 GB, and bandwidth is limited too, so heavily watched videos can use it up. Before going live, work through `docs/qa/manual-checklist.md`.
 
 ## Documentation
 

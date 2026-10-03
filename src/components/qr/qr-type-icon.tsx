@@ -9,6 +9,7 @@ import {
   Phone,
   Share2,
   Type,
+  Video,
   Wifi,
   type LucideIcon,
 } from 'lucide-react';
@@ -27,6 +28,7 @@ const QR_TYPE_ICONS: Record<QRType, LucideIcon> = {
   event: Calendar,
   location: MapPin,
   social: Share2,
+  video: Video,
 };
 
 export function getQRTypeIcon(type: QRType): LucideIcon {

@@ -208,6 +208,9 @@ export function buildPayloadForType<T extends QRType>(
       const primaryUrl = v.links[0]?.url.trim() || v.url;
       return buildSocialPayload(primaryUrl);
     }
+    case 'video':
+      // Always dynamic: this becomes the stored target, and the code itself encodes the /q/ link.
+      return (values as QRFormValuesMap['video']).videoUrl.trim();
     default: {
       const _exhaustive: never = type;
       throw new Error(`Unknown QR type: ${_exhaustive}`);

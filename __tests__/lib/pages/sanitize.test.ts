@@ -144,6 +144,61 @@ describe('safeHostedVideoUrl', () => {
     }
   });
 
+  describe('own-domain /media/ addresses', () => {
+    const APP = 'https://memento-qr.vercel.app';
+
+    beforeEach(() => {
+      vi.stubEnv('NEXT_PUBLIC_APP_URL', APP);
+    });
+
+    it('accepts the absolute and the relative form', () => {
+      for (const ext of ['mp4', 'webm', 'mov', 'MOV']) {
+        expect(safeHostedVideoUrl(`${APP}/media/abc-123/def_4.${ext}`)).toBe(`${APP}/media/abc-123/def_4.${ext}`);
+        expect(safeHostedVideoUrl(`/media/abc-123/def_4.${ext}`)).toBe(`/media/abc-123/def_4.${ext}`);
+      }
+    });
+
+    it('returns a clean URL without query or fragment', () => {
+      expect(safeHostedVideoUrl(`${APP}/media/a/b.mp4?x=1#t=3`)).toBe(`${APP}/media/a/b.mp4`);
+      expect(safeHostedVideoUrl('/media/a/b.mp4?x=1#t=3')).toBe('/media/a/b.mp4');
+    });
+
+    it('refuses other origins, protocol-relative paths and other paths', () => {
+      for (const url of [
+        'https://evil.example/media/a/b.mp4',
+        `${APP}.evil.example/media/a/b.mp4`,
+        'http://memento-qr.vercel.app/media/a/b.mp4',
+        '//evil.example/media/a/b.mp4',
+        '///media/a/b.mp4',
+        '/\\evil.example/media/a/b.mp4',
+        `${APP}/media/a/b.html`,
+        `${APP}/media/a/b.png`,
+        `${APP}/media/a/b/c.mp4`,
+        `${APP}/media/a/..%2f..%2fb.mp4`,
+        `${APP}/media/../b.mp4`,
+        `${APP}/other/a/b.mp4`,
+        '/media/a/b.html',
+        '/media/b.mp4',
+        '/media/a/b/c.mp4',
+        '/media/../x/b.mp4',
+        '/other/a/b.mp4',
+      ]) {
+        expect(safeHostedVideoUrl(url)).toBe('');
+      }
+    });
+
+    it('refuses the absolute form when the app address is not configured', () => {
+      vi.stubEnv('NEXT_PUBLIC_APP_URL', '');
+      expect(safeHostedVideoUrl(`${APP}/media/a/b.mp4`)).toBe('');
+      // The relative form never depended on it.
+      expect(safeHostedVideoUrl('/media/a/b.mp4')).toBe('/media/a/b.mp4');
+    });
+
+    it('still accepts an older Supabase address next to it', () => {
+      expect(safeHostedVideoUrl(good)).toBe(good);
+    });
+  });
+
   it('refuses everything when the storage address is not configured', () => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
 
