@@ -32,7 +32,27 @@ const SECTIONS: GuideSection[] = [
       'Click Save QR code and confirm. You stay on the page after saving.',
       'Use Export to download a PNG, SVG, JPEG or WebP (choose the high-resolution option for printing).',
     ],
-    tips: ['Keep good contrast (dark dots on a light background) and always test-scan before printing.'],
+    tips: [
+      'Keep good contrast (dark dots on a light background) and always test-scan before printing.',
+      'Every new QR code has the Memento QR logo in the middle. On the Style tab, under Logo, choose Use my own logo to replace it, Remove for a plain code, or Use Memento logo to bring it back. Codes you saved earlier are not changed.',
+    ],
+    link: { href: '/qr/new', label: 'Create a QR code' },
+  },
+  {
+    id: 'qr-frames',
+    title: 'Add a frame for an occasion',
+    intro:
+      'A frame is a decorative border drawn around the code: wedding, memorial, birthday, graduation, baby, pets, business or a simple one. It sits outside the code on a clear margin, so it does not stop the code from scanning.',
+    steps: [
+      'In the designer, open the Style tab and scroll to Frame.',
+      'Pick a design. The preview updates straight away. Choose None to remove it again.',
+      'Change the frame color and accent color, and edit the caption (up to 24 characters; clear it for no caption).',
+      'Download as usual. The frame is in every format (PNG, SVG, JPEG, WebP), on card layouts and in the print-ready PDF.',
+    ],
+    tips: [
+      'The frame makes the whole picture bigger, so print it a little larger than a plain code. Use Check that code is working on the QR list, and scan a printed copy before a big print run.',
+      'Very dark or very pale frame colors, and a see-through code background, can make scanning harder. The check tells you when that happens.',
+    ],
     link: { href: '/qr/new', label: 'Create a QR code' },
   },
   {
@@ -61,10 +81,14 @@ const SECTIONS: GuideSection[] = [
       'It says Available, or that the name is already taken. Leave it blank to get a random link.',
       'To change a name later, edit the field and save. The page or code gets the new link, and the old link keeps working and forwards to it, so printed codes and links you already shared never break.',
       'After renaming a QR code, download it again if you want the printed version to show the new link.',
+      'Reusing a deleted code’s name: when you delete a QR code its link name stays reserved. If you type that name for a new code you get an amber warning instead of an error. Saving asks you to confirm, because anyone who scans the old printed code will then reach the new one.',
+      'Forwarding an old link: on a saved QR code (Dynamic QR tab) or a published page (Publish), use Old links that forward here. Type the old link name, confirm, and the old link sends visitors to this code or page with a permanent (301) redirect. Use Remove to stop.',
     ],
     tips: [
       'Shorter names make a cleaner QR code that scans better when printed small.',
       'A name stays reserved after it is changed, so nobody else can take your old link.',
+      'A forward is remembered by browsers for up to a day, and it always goes to the code’s current link, even if you rename the code again. The scan is counted on the code the visitor lands on.',
+      'If the code or page a link forwards to is deleted, visitors see that it was removed instead of being redirected.',
       'QR link names and page link names are separate lists, so a page and a QR code can share the same name.',
     ],
   },

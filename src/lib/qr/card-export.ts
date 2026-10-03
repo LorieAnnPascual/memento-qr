@@ -3,7 +3,9 @@ import type { FileExtension } from 'qr-code-styling';
 
 import { canvasCaptionFont, canvasTitleFont, CARD_FONTS, type CardFontKey } from './card-fonts';
 import { SOCIAL_BADGES, type SocialLink } from './social-badges';
-import { downloadBlob, drawCoverImage, escapeXml, getQrPngImage, loadImage } from './card-export-utils';
+import { containBox, downloadBlob, drawCoverImage, escapeXml, extractSvgInnerMarkup, getQrPngImage, loadImage } from './card-export-utils';
+import { framedSvgFor, renderFramedRaster, type FrameSource } from './frames/framed-image';
+import type { Rect } from './frames/types';
 import { exportCustomCard } from './custom-card-export';
 import type { CustomCardDesign } from './card-builder-types';
 
@@ -26,6 +28,8 @@ export interface QRCardOptions {
   /** The QR's own center logo — also shown as a small avatar on the card for vCard/social layouts. */
   logoUrl?: string;
   socialLinks?: SocialLink[];
+  /** A frame (and the colours it needs) to draw round the QR; the framed picture then takes the QR's place on the card. */
+  qrFrame?: FrameSource;
 }
 
 const QR_RENDER_SIZE = 480;
@@ -132,11 +136,12 @@ export interface RenderedCard {
  */
 export async function renderCardRaster(qr: QRCodeStyling, card: QRCardOptions, scale: number = 1): Promise<RenderedCard> {
   await loadCardFonts(card);
-  const [image, backgroundImage, logoImage] = await Promise.all([
-    getQrPngImage(qr),
+  const [framedQr, backgroundImage, logoImage] = await Promise.all([
+    card.qrFrame ? renderFramedRaster(qr, card.qrFrame, Math.round(QR_RENDER_SIZE * scale)) : Promise.resolve(null),
     card.backgroundImageUrl ? loadImage(card.backgroundImageUrl) : Promise.resolve(null),
     card.logoUrl ? loadImage(card.logoUrl) : Promise.resolve(null),
   ]);
+  const image = framedQr ? null : await getQrPngImage(qr);
   const socialLinks = card.socialLinks ?? [];
 
   const isHorizontal = card.layout === 'horizontal';
@@ -177,15 +182,18 @@ export async function renderCardRaster(qr: QRCodeStyling, card: QRCardOptions, s
   // a colored or busy card background.
   const qrPlatePadding = 12;
 
-  if (isHorizontal) {
+  // A framed picture is not square, so it is fitted inside the same square the bare code uses.
+  const fit = framedQr
+    ? containBox(QR_RENDER_SIZE, QR_RENDER_SIZE, framedQr.canvas.width, framedQr.canvas.height)
+    : { x: 0, y: 0, width: QR_RENDER_SIZE, height: QR_RENDER_SIZE };
+  const drawQr = (x: number, y: number): void => {
     context.fillStyle = '#FFFFFF';
-    context.fillRect(
-      PADDING - qrPlatePadding,
-      PADDING - qrPlatePadding,
-      QR_RENDER_SIZE + qrPlatePadding * 2,
-      QR_RENDER_SIZE + qrPlatePadding * 2,
-    );
-    context.drawImage(image, PADDING, PADDING, QR_RENDER_SIZE, QR_RENDER_SIZE);
+    context.fillRect(x + fit.x - qrPlatePadding, y + fit.y - qrPlatePadding, fit.width + qrPlatePadding * 2, fit.height + qrPlatePadding * 2);
+    context.drawImage(framedQr ? framedQr.canvas : image!, x + fit.x, y + fit.y, fit.width, fit.height);
+  };
+
+  if (isHorizontal) {
+    drawQr(PADDING, PADDING);
 
     const textX = PADDING * 2 + QR_RENDER_SIZE;
     const textMaxWidth = TEXT_AREA_WIDTH;
@@ -237,14 +245,7 @@ export async function renderCardRaster(qr: QRCodeStyling, card: QRCardOptions, s
     }
   } else {
     const qrX = (width - QR_RENDER_SIZE) / 2;
-    context.fillStyle = '#FFFFFF';
-    context.fillRect(
-      qrX - qrPlatePadding,
-      PADDING - qrPlatePadding,
-      QR_RENDER_SIZE + qrPlatePadding * 2,
-      QR_RENDER_SIZE + qrPlatePadding * 2,
-    );
-    context.drawImage(image, qrX, PADDING, QR_RENDER_SIZE, QR_RENDER_SIZE);
+    drawQr(qrX, PADDING);
 
     let cursorY = PADDING * 2 + QR_RENDER_SIZE + 20;
 
@@ -280,9 +281,17 @@ export async function renderCardRaster(qr: QRCodeStyling, card: QRCardOptions, s
     }
   }
 
-  const qrRect = isHorizontal
-    ? { x: PADDING * scale, y: PADDING * scale, width: QR_RENDER_SIZE * scale, height: QR_RENDER_SIZE * scale }
-    : { x: ((width - QR_RENDER_SIZE) / 2) * scale, y: PADDING * scale, width: QR_RENDER_SIZE * scale, height: QR_RENDER_SIZE * scale };
+  // Where the code itself sits (inside the frame, when there is one).
+  const originX = isHorizontal ? PADDING : (width - QR_RENDER_SIZE) / 2;
+  const inner: Rect = framedQr
+    ? {
+        x: originX + fit.x + (framedQr.qrRect.x / framedQr.canvas.width) * fit.width,
+        y: PADDING + fit.y + (framedQr.qrRect.y / framedQr.canvas.height) * fit.height,
+        width: (framedQr.qrRect.width / framedQr.canvas.width) * fit.width,
+        height: (framedQr.qrRect.height / framedQr.canvas.height) * fit.height,
+      }
+    : { x: originX, y: PADDING, width: QR_RENDER_SIZE, height: QR_RENDER_SIZE };
+  const qrRect = { x: inner.x * scale, y: inner.y * scale, width: inner.width * scale, height: inner.height * scale };
 
   return { canvas, qrRect };
 }
@@ -344,6 +353,7 @@ async function exportCardAsSvg(
   const qrSvgText = await blob.text();
   const innerSvgMatch = /<svg[^>]*>([\s\S]*)<\/svg>/i.exec(qrSvgText);
   const qrInnerMarkup = innerSvgMatch ? innerSvgMatch[1] : '';
+  const framedQr = card.qrFrame ? await framedSvgFor(qr, card.qrFrame, { width: 1000, idPrefix: 'mqf' }) : null;
 
   const socialLinks = card.socialLinks ?? [];
   const isHorizontal = card.layout === 'horizontal';
@@ -391,6 +401,12 @@ async function exportCardAsSvg(
     : '';
 
   const qrPlatePadding = 12;
+  const fit = framedQr
+    ? containBox(QR_RENDER_SIZE, QR_RENDER_SIZE, framedQr.width, framedQr.height)
+    : { x: 0, y: 0, width: QR_RENDER_SIZE, height: QR_RENDER_SIZE };
+  const qrMarkup = framedQr
+    ? `<svg x="${qrX + fit.x}" y="${qrY + fit.y}" width="${fit.width}" height="${fit.height}" viewBox="0 0 ${framedQr.geometry.width} ${framedQr.geometry.height}">${extractSvgInnerMarkup(framedQr.svg)}</svg>`
+    : `<svg x="${qrX}" y="${qrY}" width="${QR_RENDER_SIZE}" height="${QR_RENDER_SIZE}">${qrInnerMarkup}</svg>`;
   const blur = card.backgroundImageBlur ?? 0;
   const blurFilter = blur
     ? `<filter id="bg-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${blur / 2}" /></filter>`
@@ -403,8 +419,8 @@ async function exportCardAsSvg(
     <defs>${blurFilter}</defs>
     <rect x="0" y="0" width="${width}" height="${height}" fill="${card.backgroundColor || '#FFFFFF'}" />
     ${backgroundImageTag}
-    <rect x="${qrX - qrPlatePadding}" y="${qrY - qrPlatePadding}" width="${QR_RENDER_SIZE + qrPlatePadding * 2}" height="${QR_RENDER_SIZE + qrPlatePadding * 2}" fill="#FFFFFF" />
-    <svg x="${qrX}" y="${qrY}" width="${QR_RENDER_SIZE}" height="${QR_RENDER_SIZE}">${qrInnerMarkup}</svg>
+    <rect x="${qrX + fit.x - qrPlatePadding}" y="${qrY + fit.y - qrPlatePadding}" width="${fit.width + qrPlatePadding * 2}" height="${fit.height + qrPlatePadding * 2}" fill="#FFFFFF" />
+    ${qrMarkup}
     ${avatarMarkup}
     ${textBlock}
     ${badgeMarkup}
@@ -420,11 +436,18 @@ export async function exportQRCard(
   card: QRCardOptions,
 ): Promise<void> {
   if (card.layout === 'custom' && card.customCard) {
-    await exportCustomCard(qr, extension, fileName, card.customCard, {
-      backgroundColor: card.backgroundColor,
-      backgroundImageUrl: card.backgroundImageUrl,
-      backgroundImageBlur: card.backgroundImageBlur,
-    });
+    await exportCustomCard(
+      qr,
+      extension,
+      fileName,
+      card.customCard,
+      {
+        backgroundColor: card.backgroundColor,
+        backgroundImageUrl: card.backgroundImageUrl,
+        backgroundImageBlur: card.backgroundImageBlur,
+      },
+      card.qrFrame,
+    );
     return;
   }
 

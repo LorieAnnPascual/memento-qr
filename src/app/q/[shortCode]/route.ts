@@ -76,6 +76,29 @@ async function claimScan(match: SQL): Promise<ClaimedScan | undefined> {
   return claimed;
 }
 
+/**
+ * An old link forwarded to another code: a permanent redirect (301) to that code's current
+ * link, which then counts the scan itself. Browsers may remember it, so it is only cached
+ * for a day, long enough to be fast and short enough to be changed.
+ */
+async function forwardTo(targetId: string, request: Request): Promise<Response> {
+  const [target] = await db
+    .select({ shortCode: qrCodes.shortCode, deletedAt: qrCodes.deletedAt })
+    .from(qrCodes)
+    .where(eq(qrCodes.id, targetId))
+    .limit(1);
+
+  if (!target?.shortCode || target.deletedAt) return explainRefusal(eq(qrCodes.id, targetId));
+
+  return new Response(null, {
+    status: 301,
+    headers: {
+      Location: new URL(`/q/${target.shortCode}`, request.url).toString(),
+      'Cache-Control': 'public, max-age=86400',
+    },
+  });
+}
+
 export async function GET(request: Request, { params }: RouteContext): Promise<Response> {
   // Link names are lowercase, so a link typed or shared with capitals still works.
   const shortCode = (await params).shortCode.toLowerCase();
@@ -83,12 +106,14 @@ export async function GET(request: Request, { params }: RouteContext): Promise<R
   let match: SQL = eq(qrCodes.shortCode, shortCode);
   let claimed = await claimScan(match);
 
-  // Not a current link: it may be an old name of a renamed code, which keeps forwarding
-  // to it. Only looked up on a miss, so ordinary scans stay a single query.
+  // Not a current link: it may be an old name of a renamed code (which keeps serving that
+  // code), or an old link someone chose to forward to another code (a permanent redirect).
+  // Only looked up on a miss, so ordinary scans stay a single query.
   if (!claimed?.targetUrl) {
-    const renamedTo = await resolveAlias('qr', shortCode);
-    if (renamedTo) {
-      match = eq(qrCodes.id, renamedTo);
+    const alias = await resolveAlias('qr', shortCode);
+    if (alias?.redirect) return forwardTo(alias.id, request);
+    if (alias) {
+      match = eq(qrCodes.id, alias.id);
       claimed = await claimScan(match);
     }
   }

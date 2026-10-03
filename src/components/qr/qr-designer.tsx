@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { QRCode } from '@/lib/db/schema';
+import { withBrandLogo } from '@/lib/qr/brand';
 import { DEFAULT_QR_STYLE, type QRStyleConfig } from '@/lib/qr/generator';
 import { getFormValidationError } from '@/lib/qr/form-validation';
 import { buildPayloadForType } from '@/lib/qr/payloads';
@@ -28,6 +29,7 @@ import { QRPreview } from './qr-preview';
 import { QRStyleEditor } from './qr-style-editor';
 import { QRTemplatePicker } from './qr-template-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ForwardLinks } from '@/components/slugs/forward-links';
 import { SlugField, type SlugStatus } from '@/components/slugs/slug-field';
 import { normalizeSlug } from '@/lib/slugs/slug';
 import { QRTypeSelector } from './qr-type-selector';
@@ -130,7 +132,8 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
     };
   });
   const [style, setStyle] = useState<QRStyleConfig>(
-    (initialQrCode?.styleConfig as QRStyleConfig) ?? initialStyle ?? DEFAULT_QR_STYLE,
+    // A saved code keeps exactly the design it has (it may already be printed); a new one starts with the Memento logo.
+    (initialQrCode?.styleConfig as QRStyleConfig) ?? withBrandLogo(initialStyle ?? DEFAULT_QR_STYLE),
   );
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -192,6 +195,16 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
     />
   ) : null;
 
+  // Old links (for example a deleted code's) can be forwarded to a saved code that has a link.
+  const forwardLinks = initialQrCode ? (
+    <ForwardLinks
+      kind="qr"
+      itemId={initialQrCode.id}
+      hasLink={Boolean(initialQrCode.isDynamic && initialQrCode.shortCode)}
+      prefix={buildRedirectUrl('')}
+    />
+  ) : null;
+
   function handleChangeValues<T extends QRType>(nextType: T, values: QRFormValuesMap[T]): void {
     setFormValues((prev) => ({ ...prev, [nextType]: values }));
   }
@@ -247,6 +260,8 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
         styleConfig: style,
         isDynamic,
         ...(isDynamic && chosenSlug && { slug: chosenSlug }),
+        // The person confirmed reusing a link name that belonged to a deleted QR code.
+        ...(isDynamic && chosenSlug && slugStatus === 'reclaim' && { reclaimDeletedLink: true }),
         folderId: folderId === NO_FOLDER ? null : folderId,
         ...(initialQrCode && { isPaused }),
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
@@ -364,6 +379,7 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
             <CardContent>
               <QRTypeForm type={type} formValues={formValues} onChangeValues={handleChangeValues}>
                 {slugField}
+                {forwardLinks}
               </QRTypeForm>
             </CardContent>
           </Card>
@@ -397,6 +413,7 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
               {isDynamic && (
                 <div className="space-y-4 border-t pt-4">
                   {type !== 'video' && slugField}
+                  {type !== 'video' && forwardLinks}
 
                   {shortLink ? (
                     <div className="space-y-2">
@@ -530,11 +547,14 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
         onOpenChange={setShowSaveConfirm}
         title={initialQrCode ? 'Save changes to this QR code?' : 'Save this QR code?'}
         description={
-          renamingTo
+          (renamingTo
             ? `The link changes from /q/${initialQrCode?.shortCode} to /q/${renamingTo}. Codes already printed with the old link keep working, but download the QR code again to use the new link.`
             : initialQrCode
               ? 'This will overwrite the saved version with your current changes.'
-              : `"${name}" will be added to your QR codes.`
+              : `"${name}" will be added to your QR codes.`) +
+          (isDynamic && chosenSlug && slugStatus === 'reclaim'
+            ? ` /q/${chosenSlug} belonged to a deleted QR code, so anyone who scans that old printed code will now reach this one.`
+            : '')
         }
         confirmLabel={initialQrCode ? 'Save changes' : 'Save QR code'}
         pendingLabel="Saving…"

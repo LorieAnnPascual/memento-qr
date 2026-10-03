@@ -7,7 +7,8 @@ import { toast } from 'sonner';
 import { CheckCircle2, Download, FileSpreadsheet, TriangleAlert } from 'lucide-react';
 
 import type { Folder, QRTemplate } from '@/lib/db/schema';
-import { DEFAULT_QR_STYLE } from '@/lib/qr/generator';
+import { withBrandLogo } from '@/lib/qr/brand';
+import { DEFAULT_QR_STYLE, type QRStyleConfig } from '@/lib/qr/generator';
 import { BATCH_CSV_TEMPLATE, MAX_BATCH_ROWS, parseBatchCsv, type BatchRow } from '@/lib/qr/batch';
 import { getQRTypeLabel } from '@/types/qr';
 import { Badge } from '@/components/ui/badge';
@@ -75,7 +76,9 @@ export function BatchQRForm({ folders, templates }: BatchQRFormProps) {
 
   async function handleCreate(): Promise<void> {
     const template = templates.find((t) => t.id === styleId);
-    const styleConfig = (template?.styleConfig as Record<string, unknown> | undefined) ?? { ...DEFAULT_QR_STYLE };
+    const styleConfig: Record<string, unknown> = template
+      ? { ...withBrandLogo(template.styleConfig as QRStyleConfig) }
+      : { ...DEFAULT_QR_STYLE };
 
     setIsCreating(true);
     try {

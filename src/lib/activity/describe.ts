@@ -37,6 +37,10 @@ export function describeActivity(entry: DescribableActivity): string {
     case 'qr.updated': {
       const newLink = detail<string>(entry.details, 'linkRenamedTo');
       if (newLink) return `renamed the link of the QR code ${name} to /q/${newLink}`;
+      const forwarded = detail<string>(entry.details, 'forwardAdded');
+      if (forwarded) return `forwarded the old link /q/${forwarded} to the QR code ${name}`;
+      const unforwarded = detail<string>(entry.details, 'forwardRemoved');
+      if (unforwarded) return `stopped forwarding /q/${unforwarded} to the QR code ${name}`;
       const paused = detail<boolean>(entry.details, 'isPaused');
       if (paused === true) return `paused the QR code ${name}`;
       if (paused === false) return `resumed the QR code ${name}`;
@@ -68,7 +72,12 @@ export function describeActivity(entry: DescribableActivity): string {
       return `created the page ${name}`;
     case 'page.updated': {
       const newLink = detail<string>(entry.details, 'linkRenamedTo');
-      return newLink ? `renamed the link of the page ${name} to /p/${newLink}` : `edited the page ${name}`;
+      if (newLink) return `renamed the link of the page ${name} to /p/${newLink}`;
+      const forwarded = detail<string>(entry.details, 'forwardAdded');
+      if (forwarded) return `forwarded the old link /p/${forwarded} to the page ${name}`;
+      const unforwarded = detail<string>(entry.details, 'forwardRemoved');
+      if (unforwarded) return `stopped forwarding /p/${unforwarded} to the page ${name}`;
+      return `edited the page ${name}`;
     }
     case 'page.deleted':
       return `deleted the page ${name}`;

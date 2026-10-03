@@ -10,6 +10,7 @@ Use at least one iPhone and one Android phone.
 - [ ] WiFi code offers to join the network (and joins it)
 - [ ] vCard code offers "Add contact" with the right name/phone/email
 - [ ] Phone code offers to call; text code shows the text
+- [ ] A code with the default **Memento logo** (every new code) scans on an iPhone and an Android phone, also printed small (about 3 cm) and with a long link
 - [ ] A code with a **large logo** still scans
 - [ ] A **gradient** code still scans
 - [ ] Light dots on a light background: note whether it scans (it may not)
@@ -17,6 +18,7 @@ Use at least one iPhone and one Android phone.
 - [ ] Dynamic code: scan → lands on the target. Change the target in the app, scan again → new target
 - [ ] Pause it in the app, scan → friendly "paused" page. Resume → works again
 - [ ] Custom link name: make a dynamic code with a name (e.g. ana-memorial), print it, scan it. Rename it in the app, scan the **old printout** again: it must still open the same place
+- [ ] Forward an old link to a live code (Dynamic QR tab), then scan the **old printout** with a phone: it must land on the live code's destination, and the scan shows in Analytics for the live code
 - [ ] A page published at a custom link opens on a phone, and its old link (after a rename) forwards to the new one
 
 ## 2. Published pages on real phones (10 min)
@@ -53,6 +55,15 @@ Firefox (desktop), Safari (macOS): sign in, create + save a QR, download PNG/SVG
 - [ ] Vercel → Project → Cron Jobs: `/api/cron/keep-alive` is listed and its first run returns 200
 - [ ] Vercel → Settings → Environment Variables: `CRON_SECRET`, `DATABASE_URL` (use Supabase's **transaction pooler, port 6543**), `NEXT_PUBLIC_APP_URL` (the real https URL) are set
 - [ ] The test accounts (`*@memento.local`) do **not** exist in Supabase → Authentication → Users
+
+## 6. QR frames (15 min, real phones)
+- [ ] Print one code per frame design (Simple, Business, Wedding, Birthday, Graduation, Baby, Memorial, Pets), once at about 25 mm and once at about 80 mm wide for the code itself
+- [ ] Scan each with an iPhone camera and an Android camera from about 20 to 40 cm: all read within a second or two
+- [ ] Repeat with a dense code (a 300-character text) and with the Memento logo in the middle
+- [ ] Try a very dark frame colour and a coloured (not white) code background: the code is still read, and the designer shows a warning where it should
+- [ ] The caption is legible and not cut off in PNG, SVG and the print PDF; open the SVG in a browser and in a vector editor
+- [ ] Print PDF: the dialog's "QR will be about N mm" matches a ruler measure of the code inside the frame
+- [ ] The picker looks right in dark mode and has no sideways scroll at 375 px wide
 
 ## Bug template
 ```

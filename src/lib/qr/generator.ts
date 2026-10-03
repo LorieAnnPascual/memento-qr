@@ -1,7 +1,9 @@
 import QRCodeStyling, { type FileExtension, type Options } from 'qr-code-styling';
 
+import { DEFAULT_LOGO_MARGIN, DEFAULT_LOGO_SIZE, DEFAULT_LOGO_URL, LOGO_ERROR_CORRECTION } from './brand';
 import type { CardFontKey } from './card-fonts';
 import type { CustomCardDesign } from './card-builder-types';
+import type { FrameConfig } from './frames/config';
 
 export interface ColorStop {
   offset: number;
@@ -39,6 +41,8 @@ export interface QRDesignConfig {
   logoUrl?: string;
   logoSize?: number;
   logoMargin?: number;
+  /** Set when someone removed the logo on purpose, so a new code made from this design does not get the Memento logo back. */
+  logoRemoved?: boolean;
   errorCorrectionLevel?: ErrorCorrectionLevel;
   /** Presentation layout used for the on-screen preview and export — ignored by qr-code-styling itself. */
   cardLayout?: QRCardLayout;
@@ -54,6 +58,8 @@ export interface QRDesignConfig {
   cardCaptionFont?: CardFontKey;
   /** Only used when cardLayout is 'custom' — a freeform design built in the Card Builder. */
   customCard?: CustomCardDesign;
+  /** A decorative border drawn outside the code (see lib/qr/frames); ignored by qr-code-styling itself. */
+  frame?: FrameConfig;
 }
 
 export type QRStyleConfig = Omit<QRDesignConfig, 'data'>;
@@ -66,7 +72,11 @@ export const DEFAULT_QR_STYLE: QRStyleConfig = {
   cornerDotStyle: 'dot',
   cornerDotColor: '#000000',
   backgroundColor: '#FFFFFF',
-  errorCorrectionLevel: 'M',
+  // Every new code carries the Memento logo in the middle (see brand.ts); it can be removed or replaced.
+  logoUrl: DEFAULT_LOGO_URL,
+  logoSize: DEFAULT_LOGO_SIZE,
+  logoMargin: DEFAULT_LOGO_MARGIN,
+  errorCorrectionLevel: LOGO_ERROR_CORRECTION,
   cardLayout: 'none',
 };
 

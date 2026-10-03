@@ -3,7 +3,9 @@ import type { FileExtension } from 'qr-code-styling';
 
 import type { CardElement, CustomCardDesign } from './card-builder-types';
 import { CARD_FONTS } from './card-fonts';
+import { framedSvgFor, renderFramedRaster, type FrameSource } from './frames/framed-image';
 import {
+  containBox,
   downloadBlob,
   drawContainImage,
   drawCoverImage,
@@ -46,13 +48,21 @@ export async function renderCustomCardCanvas(
   design: CustomCardDesign,
   background: CustomCardBackground,
   scale: number = RASTER_SCALE,
+  frame?: FrameSource,
 ): Promise<{ canvas: HTMLCanvasElement; qrRect: { x: number; y: number; width: number; height: number } | null }> {
   const textElements = design.elements.filter(
     (el): el is Extract<CardElement, { type: 'text' }> => el.type === 'text',
   );
 
+  // A framed picture fits inside the QR element's box, so the code itself is a little smaller than the box.
+  const qrElementBox = design.elements.find((el) => el.type === 'qr');
+  const framedQr =
+    frame && qrElementBox
+      ? await renderFramedRaster(qr, frame, Math.round(Math.min(qrElementBox.width, qrElementBox.height) * scale))
+      : null;
+
   const [qrImage, backgroundImage, elementImages] = await Promise.all([
-    getQrPngImage(qr),
+    framedQr ? Promise.resolve(null) : getQrPngImage(qr),
     background.backgroundImageUrl ? loadImage(background.backgroundImageUrl) : Promise.resolve(null),
     loadElementImages(design.elements),
   ]);
@@ -92,7 +102,12 @@ export async function renderCustomCardCanvas(
     const h = el.height * scale;
 
     if (el.type === 'qr') {
-      context.drawImage(qrImage, x, y, w, h);
+      if (framedQr) {
+        const fit = containBox(w, h, framedQr.canvas.width, framedQr.canvas.height);
+        context.drawImage(framedQr.canvas, x + fit.x, y + fit.y, fit.width, fit.height);
+      } else if (qrImage) {
+        context.drawImage(qrImage, x, y, w, h);
+      }
     } else if (el.type === 'shape') {
       context.globalAlpha = el.opacity / 100;
       context.fillStyle = el.color;
@@ -126,9 +141,20 @@ export async function renderCustomCardCanvas(
   }
 
   const qrElement = design.elements.find((el) => el.type === 'qr');
-  const qrRect = qrElement
+  let qrRect = qrElement
     ? { x: qrElement.x * scale, y: qrElement.y * scale, width: qrElement.width * scale, height: qrElement.height * scale }
     : null;
+  if (qrElement && qrRect && framedQr) {
+    // Report the code inside the frame, which is what has to stay big enough to scan.
+    const fit = containBox(qrRect.width, qrRect.height, framedQr.canvas.width, framedQr.canvas.height);
+    const ratio = fit.width / framedQr.canvas.width;
+    qrRect = {
+      x: qrRect.x + fit.x + framedQr.qrRect.x * ratio,
+      y: qrRect.y + fit.y + framedQr.qrRect.y * ratio,
+      width: framedQr.qrRect.width * ratio,
+      height: framedQr.qrRect.height * ratio,
+    };
+  }
 
   return { canvas, qrRect };
 }
@@ -139,8 +165,9 @@ async function exportCustomCardAsRaster(
   fileName: string,
   design: CustomCardDesign,
   background: CustomCardBackground,
+  frame?: FrameSource,
 ): Promise<void> {
-  const { canvas } = await renderCustomCardCanvas(qr, design, background);
+  const { canvas } = await renderCustomCardCanvas(qr, design, background, RASTER_SCALE, frame);
   const mimeType = extension === 'jpeg' ? 'image/jpeg' : `image/${extension}`;
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mimeType, 0.95));
   if (!blob) throw new Error('Failed to export card image');
@@ -169,12 +196,14 @@ async function exportCustomCardAsSvg(
   fileName: string,
   design: CustomCardDesign,
   background: CustomCardBackground,
+  frame?: FrameSource,
 ): Promise<void> {
   const blob = await qr.getRawData('svg');
   if (!blob || !(blob instanceof Blob)) {
     throw new Error('Failed to render QR code SVG');
   }
   const qrInnerMarkup = extractSvgInnerMarkup(await blob.text());
+  const framedQr = frame ? await framedSvgFor(qr, frame, { width: 1000, idPrefix: 'mqf' }) : null;
 
   const { width, height } = design;
   const blur = background.backgroundImageBlur ?? 0;
@@ -189,6 +218,10 @@ async function exportCustomCardAsSvg(
   const elementsMarkup = sorted
     .map((el) => {
       if (el.type === 'qr') {
+        if (framedQr) {
+          const fit = containBox(el.width, el.height, framedQr.width, framedQr.height);
+          return `<svg x="${el.x + fit.x}" y="${el.y + fit.y}" width="${fit.width}" height="${fit.height}" viewBox="0 0 ${framedQr.geometry.width} ${framedQr.geometry.height}">${extractSvgInnerMarkup(framedQr.svg)}</svg>`;
+        }
         return `<svg x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}">${qrInnerMarkup}</svg>`;
       }
       if (el.type === 'shape') {
@@ -221,11 +254,12 @@ export async function exportCustomCard(
   fileName: string,
   design: CustomCardDesign,
   background: CustomCardBackground,
+  frame?: FrameSource,
 ): Promise<void> {
   if (extension === 'svg') {
-    await exportCustomCardAsSvg(qr, fileName, design, background);
+    await exportCustomCardAsSvg(qr, fileName, design, background, frame);
   } else {
-    await exportCustomCardAsRaster(qr, extension, fileName, design, background);
+    await exportCustomCardAsRaster(qr, extension, fileName, design, background, frame);
   }
 }
 

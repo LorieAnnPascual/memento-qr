@@ -201,6 +201,9 @@ export const slugAliases = pgTable(
     code: text('code').notNull(),
     qrCodeId: uuid('qr_code_id').references(() => qrCodes.id, { onDelete: 'cascade' }),
     pageId: uuid('page_id').references(() => pageTemplates.id, { onDelete: 'cascade' }),
+    // false: a renamed item's own old name, which serves the item directly. true: an old link
+    // someone chose to forward to this item, answered with a permanent redirect (301).
+    redirect: boolean('redirect').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

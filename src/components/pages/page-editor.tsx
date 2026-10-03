@@ -15,6 +15,7 @@ import { normalizePageData } from '@/lib/pages/normalize';
 import { PAGE_TEMPLATE_CATEGORIES } from '@/lib/pages/templates';
 import { buildPublishedUrl, toPublishStatus, type PublishedPageStatus } from '@/lib/pages/page-status';
 import { normalizeSlug } from '@/lib/slugs/slug';
+import { ForwardLinks } from '@/components/slugs/forward-links';
 import { SlugField, type SlugStatus } from '@/components/slugs/slug-field';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -386,6 +387,8 @@ export function PageEditor({ page }: PageEditorProps) {
               </Button>
             )}
           </div>
+
+          <ForwardLinks kind="page" itemId={page.id} hasLink={Boolean(status.shortCode)} prefix={buildPublishedUrl('')} />
 
           <div className="space-y-2">
             <Label htmlFor="page-expiry">Expires (optional)</Label>

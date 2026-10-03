@@ -10,6 +10,7 @@ import type {
   QRStyleConfig,
 } from '@/lib/qr/generator';
 import { useImageUpload } from '@/hooks/use-image-upload';
+import { DEFAULT_LOGO_URL, isDefaultLogo, withDefaultLogo, withLogo, withoutLogo } from '@/lib/qr/brand';
 import { MediaPickerButton } from '@/components/media/media-picker';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -18,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { ColorField } from './color-field';
+import { FramePicker } from './frame-picker';
 import { GradientField } from './gradient-field';
 
 const DOT_STYLES: { value: DotStyle; label: string }[] = [
@@ -61,7 +63,7 @@ export function QRStyleEditor({ value, onChange }: QRStyleEditorProps) {
   }
 
   const { isUploading: isUploadingLogo, handleFileChange: handleLogoUpload } = useImageUpload({
-    onUploaded: (file) => patch({ logoUrl: file.publicUrl }),
+    onUploaded: (file) => onChange(withLogo(value, file.publicUrl)),
   });
 
   return (
@@ -197,7 +199,21 @@ export function QRStyleEditor({ value, onChange }: QRStyleEditorProps) {
 
       <div className="space-y-2">
         <Label>Logo</Label>
-        <div className="flex items-center gap-2">
+        {isDefaultLogo(value.logoUrl) ? (
+          <div className="flex items-center gap-3 rounded-lg border p-2" data-testid="default-logo-note">
+            {/* eslint-disable-next-line @next/next/no-img-element -- the small brand logo, a static file */}
+            <img src={DEFAULT_LOGO_URL} alt="" className="size-10 shrink-0 object-contain" />
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Memento QR logo (default).</span> Every new code carries it.
+              Upload your own logo to replace it, or remove it for a plain code.
+            </p>
+          </div>
+        ) : !value.logoUrl ? (
+          <p className="text-xs text-muted-foreground" data-testid="no-logo-note">
+            No logo: this code is plain.
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -212,13 +228,23 @@ export function QRStyleEditor({ value, onChange }: QRStyleEditorProps) {
             disabled={isUploadingLogo}
             onClick={() => fileInputRef.current?.click()}
           >
-            {isUploadingLogo ? 'Uploading…' : value.logoUrl ? 'Replace logo' : 'Upload logo'}
+            {isUploadingLogo
+              ? 'Uploading…'
+              : isDefaultLogo(value.logoUrl)
+                ? 'Use my own logo'
+                : value.logoUrl
+                  ? 'Replace logo'
+                  : 'Upload logo'}
           </Button>
-          <MediaPickerButton onSelect={(url) => patch({ logoUrl: url })} />
+          <MediaPickerButton onSelect={(url) => onChange(withLogo(value, url))} />
 
-          {value.logoUrl && (
+          {value.logoUrl ? (
             <Button type="button" variant="ghost" size="sm" onClick={() => setShowRemoveLogoConfirm(true)}>
               Remove
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={() => onChange(withDefaultLogo(value))}>
+              Use Memento logo
             </Button>
           )}
         </div>
@@ -250,15 +276,23 @@ export function QRStyleEditor({ value, onChange }: QRStyleEditorProps) {
         )}
       </div>
 
+      <Separator />
+
+      <FramePicker value={value} onChange={onChange} />
+
       <ConfirmDialog
         open={showRemoveLogoConfirm}
         onOpenChange={setShowRemoveLogoConfirm}
         title="Remove this logo?"
-        description="The logo will be cleared from this QR code's design. The file itself stays in your Media library."
+        description={
+          isDefaultLogo(value.logoUrl)
+            ? 'The Memento QR logo will be removed, so this code is plain. You can put it back at any time.'
+            : "The logo will be cleared from this QR code's design. The file itself stays in your Media library."
+        }
         confirmLabel="Remove"
         variant="destructive"
         onConfirm={() => {
-          patch({ logoUrl: undefined });
+          onChange(withoutLogo(value));
           setShowRemoveLogoConfirm(false);
         }}
       />

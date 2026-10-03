@@ -1,0 +1,1 @@
+ALTER TABLE "slug_aliases" ADD COLUMN "redirect" boolean DEFAULT false NOT NULL;

@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cleanSlugWhileTyping, normalizeSlug, slugProblem, SLUG_MAX_LENGTH, type SlugKind } from '@/lib/slugs/slug';
 
-export type SlugStatus = 'idle' | 'checking' | 'ok' | 'problem';
+/** `reclaim`: the name belonged to a deleted QR code; it can be reused once the person confirms. */
+export type SlugStatus = 'idle' | 'checking' | 'ok' | 'reclaim' | 'problem';
 
 interface SlugFieldProps {
   kind: SlugKind;
@@ -34,6 +35,9 @@ interface Result {
 }
 
 const CHECK_DELAY_MS = 400;
+
+const RECLAIM_MESSAGE =
+  'This was the link of a QR code that was deleted. You can reuse it, but anyone who scans that old printed code will then reach this one.';
 
 /** A link-name input with live feedback: cleaned-up preview, allowed or not, taken or free. */
 export function SlugField({
@@ -75,13 +79,15 @@ export function SlugField({
         const query = new URLSearchParams({ kind, slug: clean, ...(excludeId && { excludeId }) });
         const response = await fetch(`/api/slugs/check?${query.toString()}`);
         if (!response.ok) throw new Error(`Check failed (${response.status})`);
-        const body = (await response.json()) as { available: boolean; error: string | null };
+        const body = (await response.json()) as { available: boolean; reclaimable?: boolean; error: string | null };
         if (cancelled) return;
         setRemote({
           slug: clean,
           result: body.available
             ? { status: 'ok', message: 'Available' }
-            : { status: 'problem', message: body.error ?? 'That link name is already taken.' },
+            : body.reclaimable
+              ? { status: 'reclaim', message: RECLAIM_MESSAGE }
+              : { status: 'problem', message: body.error ?? 'That link name is already taken.' },
         });
       } catch (error) {
         console.error('Link name check error:', error);
@@ -100,7 +106,9 @@ export function SlugField({
     onStatusChange?.(result.status);
   }, [result.status, onStatusChange]);
 
-  const renaming = Boolean(currentSlug && clean && clean !== currentSlug && result.status === 'ok');
+  const renaming = Boolean(
+    currentSlug && clean && clean !== currentSlug && (result.status === 'ok' || result.status === 'reclaim'),
+  );
   const messageId = `${id}-message`;
 
   return (
@@ -133,7 +141,9 @@ export function SlugField({
             ? 'text-sm font-medium text-destructive'
             : result.status === 'ok'
               ? 'text-sm font-medium text-emerald-700 dark:text-emerald-400'
-              : 'text-xs text-muted-foreground'
+              : result.status === 'reclaim'
+                ? 'text-sm font-medium text-amber-700 dark:text-amber-400'
+                : 'text-xs text-muted-foreground'
         }
       >
         {result.message ?? hint ?? ''}

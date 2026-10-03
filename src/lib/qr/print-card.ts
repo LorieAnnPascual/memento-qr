@@ -1,5 +1,6 @@
 import { renderCardRaster, type QRCardOptions, type RenderedCard } from './card-export';
 import { renderCustomCardCanvas } from './custom-card-export';
+import { cardAvatarLogo } from './brand';
 import { createQRCode, type QRDesignConfig } from './generator';
 import {
   croppedShare,
@@ -64,6 +65,7 @@ export async function renderBaseCard(
         backgroundImageBlur: config.cardBackgroundImageBlur,
       },
       BASE_SCALE,
+      config,
     );
   } else {
     const layout = config.cardLayout === 'vertical' ? 'vertical' : 'horizontal';
@@ -78,8 +80,9 @@ export async function renderBaseCard(
       captionColor: config.cardCaptionColor,
       titleFont: config.cardTitleFont,
       captionFont: config.cardCaptionFont,
-      logoUrl: config.logoUrl,
+      logoUrl: cardAvatarLogo(config.logoUrl),
       socialLinks: options.socialLinks,
+      qrFrame: config,
     };
     rendered = await renderCardRaster(qr, card, BASE_SCALE);
   }

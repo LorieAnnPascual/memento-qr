@@ -1,3 +1,5 @@
+import { plateColorFor } from './frames/build';
+import { MAX_CAPTION_LENGTH, resolveFrame } from './frames/config';
 import type { QRDesignConfig } from './generator';
 
 export type IssueSeverity = 'problem' | 'warning';
@@ -152,6 +154,36 @@ export function checkDesign(config: QRDesignConfig): DesignIssue[] {
         severity: 'warning',
         text: 'A logo is placed on a code with low error correction.',
         fix: 'Switch error correction to High so the code survives the logo.',
+      });
+    }
+  }
+
+  const frame = resolveFrame(config.frame);
+  if (frame) {
+    const rawCaption = typeof config.frame?.caption === 'string' ? config.frame.caption.trim() : '';
+    if (Array.from(rawCaption).length > MAX_CAPTION_LENGTH) {
+      issues.push({
+        severity: 'warning',
+        text: `The frame caption is longer than ${MAX_CAPTION_LENGTH} characters, so it is cut short.`,
+        fix: `Shorten the caption to ${MAX_CAPTION_LENGTH} characters or fewer.`,
+      });
+    }
+
+    // The frame sits outside the code on a clear plate; if its colour matches that plate the edge of the code is hard to see.
+    const plateRatio = contrastRatio(frame.primary, plateColorFor(config));
+    if (plateRatio !== null && plateRatio < 1.5) {
+      issues.push({
+        severity: 'warning',
+        text: `The frame colour is almost the same as the code's background (contrast ${plateRatio.toFixed(1)}:1), so where the code starts is unclear.`,
+        fix: 'Pick a darker frame colour, or a lighter code background.',
+      });
+    }
+
+    if (config.backgroundOpacity !== undefined && config.backgroundOpacity < 100 && !config.backgroundGradient) {
+      issues.push({
+        severity: 'warning',
+        text: 'A frame is used with a see-through code background. The frame puts the code on a plain white plate, so the see-through effect is lost.',
+        fix: 'Set the QR background opacity to 100%, or remove the frame to keep the code see-through.',
       });
     }
   }

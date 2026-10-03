@@ -87,3 +87,16 @@ export function extractSvgInnerMarkup(svgText: string): string {
   const match = /<svg[^>]*>([\s\S]*)<\/svg>/i.exec(svgText);
   return match ? match[1] : '';
 }
+
+/** Where content of the given size lands (relative to the box's top-left) when scaled to fit inside the box and centred. */
+export function containBox(
+  boxWidth: number,
+  boxHeight: number,
+  contentWidth: number,
+  contentHeight: number,
+): { x: number; y: number; width: number; height: number } {
+  const scale = Math.min(boxWidth / contentWidth, boxHeight / contentHeight);
+  const width = contentWidth * scale;
+  const height = contentHeight * scale;
+  return { x: (boxWidth - width) / 2, y: (boxHeight - height) / 2, width, height };
+}

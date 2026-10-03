@@ -7,9 +7,11 @@ import { Download } from 'lucide-react';
 
 import type { FileExtension } from 'qr-code-styling';
 
+import { cardAvatarLogo } from '@/lib/qr/brand';
 import type { QRDesignConfig } from '@/lib/qr/generator';
 import { createPrintQR, createQRCode, downloadQR } from '@/lib/qr/generator';
 import { exportQRCard } from '@/lib/qr/card-export';
+import { exportFramedQr, hasFrame } from '@/lib/qr/frames/framed-image';
 import type { SocialLink } from '@/lib/qr/social-badges';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,13 +68,16 @@ export function QRExport({ config, fileName, title, socialLinks = [] }: QRExport
           captionColor: config.cardCaptionColor,
           titleFont: config.cardTitleFont,
           captionFont: config.cardCaptionFont,
-          logoUrl: config.logoUrl,
+          logoUrl: cardAvatarLogo(config.logoUrl),
           socialLinks,
           customCard: config.customCard,
+          qrFrame: hasFrame(config) ? config : undefined,
         });
       } else {
         const qr = print ? createPrintQR(config) : createQRCode(config);
-        await downloadQR(qr, extension, name);
+        // With a frame the picture is the framed code; without one the plain code is downloaded as before.
+        const framed = await exportFramedQr(qr, config, extension, name, print ? 2048 : 1024);
+        if (!framed) await downloadQR(qr, extension, name);
       }
     } catch (error) {
       toast.error('Failed to export QR code. Please try again.');

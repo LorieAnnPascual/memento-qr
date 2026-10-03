@@ -40,6 +40,8 @@ export const CreateQRSchema = z.object({
   isDynamic: z.boolean().optional(),
   /** A link name chosen by the team for a dynamic code (`/q/ana-memorial`); blank or omitted keeps the current / a random one. */
   slug: z.string().max(100).optional(),
+  /** The person confirmed reusing a link name that belonged to a deleted QR code. */
+  reclaimDeletedLink: z.boolean().optional(),
   // Not restricted to `.url()` — a dynamic QR's target can be any absolute
   // URI (mailto:, tel:, etc.), not just http(s).
   targetUrl: z.string().min(1).max(2000).optional(),

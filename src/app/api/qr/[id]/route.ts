@@ -9,7 +9,13 @@ import { destinationChanged, recordDestinationChange } from '@/lib/qr/destinatio
 import { INVALID_VIDEO_RESPONSE, UpdateQRSchema, VIDEO_MUST_BE_DYNAMIC_RESPONSE } from '@/lib/qr/schemas';
 import { playableVideoUrl } from '@/lib/qr/video-player';
 import { buildRedirectUrl, generateShortCode } from '@/lib/qr/short-code';
-import { checkRequestedSlug, isUniqueViolation, recordRename, SLUG_TAKEN_RESPONSE } from '@/lib/slugs/slugs';
+import {
+  checkRequestedSlug,
+  isUniqueViolation,
+  recordRename,
+  releaseDeletedSlug,
+  SLUG_TAKEN_RESPONSE,
+} from '@/lib/slugs/slugs';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -81,9 +87,11 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
   // A new link name (`/q/ana-memorial`). Blank or omitted keeps the current one.
   let requestedSlug: string | null = null;
   if (effectiveIsDynamic) {
-    const requested = await checkRequestedSlug('qr', data.slug, id);
+    const requested = await checkRequestedSlug('qr', data.slug, id, data.reclaimDeletedLink);
     if (!requested.ok) return requested.response;
     requestedSlug = requested.slug;
+    // The name was a deleted code's: it loses the link so this code can have it.
+    if (requested.reclaim && requested.slug) await releaseDeletedSlug(requested.slug);
   }
 
   // `data.payload`, when sent, is always the *content* the designer built

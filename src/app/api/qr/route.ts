@@ -9,7 +9,7 @@ import { recordDestinationChange } from '@/lib/qr/destination-history';
 import { CreateQRSchema, INVALID_VIDEO_RESPONSE, VIDEO_MUST_BE_DYNAMIC_RESPONSE } from '@/lib/qr/schemas';
 import { playableVideoUrl } from '@/lib/qr/video-player';
 import { buildRedirectUrl, generateShortCode } from '@/lib/qr/short-code';
-import { checkRequestedSlug, isUniqueViolation, SLUG_TAKEN_RESPONSE } from '@/lib/slugs/slugs';
+import { checkRequestedSlug, isUniqueViolation, releaseDeletedSlug, SLUG_TAKEN_RESPONSE } from '@/lib/slugs/slugs';
 import type { QRType } from '@/types/qr';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -95,9 +95,11 @@ export async function POST(request: Request): Promise<Response> {
   // A chosen link name (`/q/ana-memorial`) replaces the random one; static codes have no link.
   let requestedSlug: string | null = null;
   if (isDynamic) {
-    const requested = await checkRequestedSlug('qr', data.slug);
+    const requested = await checkRequestedSlug('qr', data.slug, undefined, data.reclaimDeletedLink);
     if (!requested.ok) return requested.response;
     requestedSlug = requested.slug;
+    // The name was a deleted code's: it loses the link so this code can have it.
+    if (requested.reclaim && requested.slug) await releaseDeletedSlug(requested.slug);
   }
   const shortCode = isDynamic ? (requestedSlug ?? generateShortCode()) : null;
 

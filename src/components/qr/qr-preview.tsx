@@ -2,6 +2,8 @@
 
 import { QrCode } from 'lucide-react';
 
+import { cardAvatarLogo } from '@/lib/qr/brand';
+import { hasFrame } from '@/lib/qr/frames/framed-image';
 import type { QRDesignConfig } from '@/lib/qr/generator';
 import { cssFontFamily } from '@/lib/qr/card-fonts';
 import type { SocialLink } from '@/lib/qr/social-badges';
@@ -24,6 +26,11 @@ const CARD_QR_SIZE: Record<'horizontal' | 'vertical', number> = {
   horizontal: 120,
   vertical: 180,
 };
+// A frame needs room round the code, so its picture is a little bigger than the bare code would be.
+const CARD_FRAME_SIZE: Record<'horizontal' | 'vertical', number> = {
+  horizontal: 156,
+  vertical: 176,
+};
 
 // The custom-card canvas renders at its full design-unit size and is scaled
 // down with CSS transform to fit the sidebar — crisp at any size since the
@@ -39,7 +46,16 @@ export function QRPreview({ config, size = 280, title, caption, socialLinks = []
   // spread config, which must not leak into the requested `size`.
   const customQrElement =
     layout === 'custom' ? config.customCard?.elements.find((el) => el.type === 'qr') : undefined;
-  const qrSize = isCard ? CARD_QR_SIZE[layout] : (customQrElement?.width ?? size);
+  const framed = hasFrame(config);
+  const qrSize = isCard
+    ? (framed ? CARD_FRAME_SIZE : CARD_QR_SIZE)[layout]
+    : customQrElement
+      ? framed
+        ? Math.min(customQrElement.width, customQrElement.height)
+        : customQrElement.width
+      : framed
+        ? size + 16
+        : size;
   const { ref } = useQRCode(config, qrSize);
 
   if (!config.data) {
@@ -59,8 +75,11 @@ export function QRPreview({ config, size = 280, title, caption, socialLinks = []
   if (layout === 'none') {
     return (
       <div
-        className="flex items-center justify-center rounded-lg border border-input bg-white p-4"
-        style={{ width: size + 32, height: size + 32 }}
+        className={cn(
+          'flex items-center justify-center rounded-lg border border-input bg-white',
+          framed ? 'p-2' : 'p-4',
+        )}
+        style={framed ? { width: size + 32, minHeight: size + 32 } : { width: size + 32, height: size + 32 }}
       >
         <div key="none" ref={ref} data-testid="qr-preview-canvas" />
       </div>
@@ -121,7 +140,7 @@ export function QRPreview({ config, size = 280, title, caption, socialLinks = []
                       ref={ref}
                       data-testid="qr-preview-canvas"
                       style={boxStyle}
-                      className="overflow-hidden"
+                      className={cn('overflow-hidden', framed && 'flex items-center justify-center')}
                     />
                   );
                 }
@@ -198,13 +217,13 @@ export function QRPreview({ config, size = 280, title, caption, socialLinks = []
           key={layout}
           ref={ref}
           data-testid="qr-preview-canvas"
-          className="shrink-0 overflow-hidden rounded-md bg-white p-1"
+          className={cn('shrink-0 overflow-hidden rounded-md bg-white', framed ? 'p-0' : 'p-1')}
         />
         <div className={cn('min-w-0', isHorizontal ? 'max-w-[140px] text-left' : '')}>
-          {config.logoUrl && (
+          {cardAvatarLogo(config.logoUrl) && (
             // eslint-disable-next-line @next/next/no-img-element -- arbitrary user-uploaded URL, not optimizable by next/image
             <img
-              src={config.logoUrl}
+              src={cardAvatarLogo(config.logoUrl)}
               alt=""
               className={cn(
                 'mb-1.5 size-8 rounded-full border border-input bg-white object-contain p-0.5',

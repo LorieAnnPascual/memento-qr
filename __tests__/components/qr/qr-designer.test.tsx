@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { QRDesigner } from '@/components/qr/qr-designer';
@@ -193,5 +193,107 @@ describe('QRDesigner dynamic QR settings', () => {
     expect(body.isDynamic).toBe(true);
     expect(body.scanLimit).toBe(50);
     expect(body.payload).toBe('https://example.com');
+  });
+});
+
+describe('QRDesigner default logo', () => {
+  const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [], files: [] }) }));
+
+  beforeEach(() => {
+    fetchMock.mockClear();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  async function openStyleTab(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+    await user.click(screen.getByRole('tab', { name: 'Style' }));
+  }
+
+  it('a new code starts with the Memento QR logo, and says so', async () => {
+    render(<QRDesigner />);
+    const user = userEvent.setup();
+
+    await openStyleTab(user);
+
+    expect(screen.getByTestId('default-logo-note')).toHaveTextContent('Memento QR logo (default)');
+    expect(screen.getByRole('button', { name: 'Use my own logo' })).toBeInTheDocument();
+    expect(screen.getByText('Logo size')).toBeInTheDocument();
+  });
+
+  it('the logo can be removed after a confirmation, and put back', async () => {
+    render(<QRDesigner />);
+    const user = userEvent.setup();
+    await openStyleTab(user);
+
+    await user.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('The Memento QR logo will be removed');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByTestId('default-logo-note')).toBeInTheDocument(); // cancelling changes nothing
+
+    await user.click(screen.getByRole('button', { name: 'Remove' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Remove' }));
+
+    expect(screen.queryByTestId('default-logo-note')).not.toBeInTheDocument();
+    expect(screen.getByTestId('no-logo-note')).toHaveTextContent('No logo');
+    expect(screen.queryByText('Logo size')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Use Memento logo' }));
+
+    expect(screen.getByTestId('default-logo-note')).toBeInTheDocument();
+  });
+
+  it('a saved code keeps exactly the design it had: no logo is added to what may already be printed', async () => {
+    const saved = {
+      id: 'qr-1',
+      userId: 'u',
+      name: 'Old code',
+      qrType: 'url',
+      payload: 'https://example.com',
+      payloadFields: { url: 'example.com' },
+      isDynamic: false,
+      shortCode: null,
+      targetUrl: null,
+      styleConfig: { dotStyle: 'square', dotColor: '#000000', errorCorrectionLevel: 'M', cardLayout: 'none' },
+      folderId: null,
+      isPaused: false,
+      expiresAt: null,
+      scanLimit: null,
+      scanCount: 0,
+      deletedAt: null,
+    };
+    render(<QRDesigner initialQrCode={saved as never} />);
+    const user = userEvent.setup();
+
+    await openStyleTab(user);
+
+    expect(screen.queryByTestId('default-logo-note')).not.toBeInTheDocument();
+    expect(screen.getByTestId('no-logo-note')).toBeInTheDocument();
+  });
+
+  it('a saved code that has its own logo shows it as replaceable, not as the default', async () => {
+    const saved = {
+      id: 'qr-2',
+      userId: 'u',
+      name: 'Branded',
+      qrType: 'url',
+      payload: 'https://example.com',
+      payloadFields: { url: 'example.com' },
+      isDynamic: false,
+      shortCode: null,
+      targetUrl: null,
+      styleConfig: { dotStyle: 'square', logoUrl: 'https://s.example/own.png', logoSize: 0.3, errorCorrectionLevel: 'H', cardLayout: 'none' },
+      folderId: null,
+      isPaused: false,
+      expiresAt: null,
+      scanLimit: null,
+      scanCount: 0,
+      deletedAt: null,
+    };
+    render(<QRDesigner initialQrCode={saved as never} />);
+    const user = userEvent.setup();
+
+    await openStyleTab(user);
+
+    expect(screen.queryByTestId('default-logo-note')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Replace logo' })).toBeInTheDocument();
   });
 });
