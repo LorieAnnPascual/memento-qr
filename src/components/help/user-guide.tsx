@@ -46,7 +46,7 @@ const SECTIONS: GuideSection[] = [
     steps: [
       'In the designer, open the Style tab and scroll to Frame.',
       'Pick a design. The preview updates straight away. Choose None to remove it again.',
-      'Change the frame color and accent color, and edit the caption (up to 24 characters; clear it for no caption).',
+      'Change the frame color and accent color, and edit the caption (up to 50 characters, though about 24 or fewer stays easiest to read on a small print; clear it for no caption).',
       'Download as usual. The frame is in every format (PNG, SVG, JPEG, WebP), on card layouts and in the print-ready PDF.',
     ],
     tips: [

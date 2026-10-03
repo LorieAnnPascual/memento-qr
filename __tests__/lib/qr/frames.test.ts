@@ -133,11 +133,13 @@ describe('caption safety', () => {
     expect(text).toBe(cleanCaption(caption));
   });
 
-  it('cleans captions: one line, at most 24 characters, no control characters', () => {
+  it('cleans captions: one line, at most 50 characters, no control characters', () => {
+    expect(MAX_CAPTION_LENGTH).toBe(50);
     expect(cleanCaption('  a \n\n b  ')).toBe('a b');
-    expect(cleanCaption('x'.repeat(40))).toHaveLength(MAX_CAPTION_LENGTH);
+    expect(cleanCaption('x'.repeat(80))).toHaveLength(MAX_CAPTION_LENGTH);
+    expect(cleanCaption('x'.repeat(50))).toHaveLength(50);
     expect(cleanCaption('bad\u0000\u0007char')).toBe('badchar');
-    expect(Array.from(cleanCaption('\u{1F389}'.repeat(30)))).toHaveLength(MAX_CAPTION_LENGTH);
+    expect(Array.from(cleanCaption('\u{1F389}'.repeat(80)))).toHaveLength(MAX_CAPTION_LENGTH);
     expect(cleanCaption('lone\uD800surrogate')).toBe('lonesurrogate');
   });
 
@@ -234,9 +236,22 @@ describe('frame design checks', () => {
     expect(checkDesign({ ...base, frame: defaultFrameConfig('simple') })).toEqual([]);
   });
 
-  it('warns about a caption that is too long', () => {
-    const issues = checkDesign({ ...base, frame: { id: 'simple', caption: 'x'.repeat(30) } });
-    expect(issues.some((i) => i.text.includes('caption is longer'))).toBe(true);
+  it('accepts a caption of up to 24 characters without comment', () => {
+    expect(checkDesign({ ...base, frame: { id: 'simple', caption: 'x'.repeat(24) } })).toEqual([]);
+  });
+
+  it('warns, without cutting it, when a caption is long enough that its text gets small', () => {
+    for (const length of [25, 40, 50]) {
+      const issues = checkDesign({ ...base, frame: { id: 'simple', caption: 'x'.repeat(length) } });
+      expect(issues.some((i) => i.text.includes('caption is long'))).toBe(true);
+      expect(issues.some((i) => i.text.includes('cut short'))).toBe(false);
+      expect(issues.every((i) => i.severity === 'warning')).toBe(true);
+    }
+  });
+
+  it('warns that a caption over 50 characters is cut short', () => {
+    const issues = checkDesign({ ...base, frame: { id: 'simple', caption: 'x'.repeat(60) } });
+    expect(issues.some((i) => i.text.includes('cut short'))).toBe(true);
   });
 
   it('warns when the frame colour matches the code background', () => {

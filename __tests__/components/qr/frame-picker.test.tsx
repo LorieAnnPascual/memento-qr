@@ -71,12 +71,23 @@ describe('FramePicker', () => {
     expect((onValue.mock.calls.at(-1)![0] as QRStyleConfig).frame?.accentColor).toBe('#445566');
 
     const caption = screen.getByLabelText('Caption');
-    expect(caption).toHaveAttribute('maxlength', '24');
+    expect(caption).toHaveAttribute('maxlength', '50');
     fireEvent.change(caption, { target: { value: 'Ana & Ben' } });
     expect((onValue.mock.calls.at(-1)![0] as QRStyleConfig).frame?.caption).toBe('Ana & Ben');
 
     fireEvent.change(caption, { target: { value: '' } });
     expect((onValue.mock.calls.at(-1)![0] as QRStyleConfig).frame?.caption).toBe('');
+  });
+
+  it('allows a caption of 50 characters, and gently warns once it is long enough to get small', async () => {
+    render(<Harness initial={{ frame: { id: 'simple', caption: 'Our day' } }} onValue={() => {}} />);
+    expect(screen.queryByTestId('qr-frame-caption-long')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Caption'), { target: { value: 'x'.repeat(24) } });
+    expect(screen.queryByTestId('qr-frame-caption-long')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Caption'), { target: { value: 'x'.repeat(40) } });
+    expect(screen.getByTestId('qr-frame-caption-long')).toHaveTextContent('text shrinks to fit');
   });
 
   it('keeps a hand-written caption when another design is picked', async () => {

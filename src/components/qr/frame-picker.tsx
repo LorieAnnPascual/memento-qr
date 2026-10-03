@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { buildFramedSvg } from '@/lib/qr/frames/build';
-import { defaultFrameConfig, MAX_CAPTION_LENGTH, resolveFrame, type FrameConfig } from '@/lib/qr/frames/config';
+import {
+  COMFORTABLE_CAPTION_LENGTH,
+  defaultFrameConfig,
+  MAX_CAPTION_LENGTH,
+  resolveFrame,
+  type FrameConfig,
+} from '@/lib/qr/frames/config';
 import { framesByOccasion, type FrameId } from '@/lib/qr/frames/registry';
 import { getSampleQr, type SampleQr } from '@/lib/qr/frames/sample-qr';
 import type { QRStyleConfig } from '@/lib/qr/generator';
@@ -181,6 +187,12 @@ export function FramePicker({ value, onChange }: FramePickerProps) {
             <p id="qr-frame-caption-hint" className="text-xs text-muted-foreground">
               Up to {MAX_CAPTION_LENGTH} characters. Clear it for a frame without a caption.
             </p>
+            {Array.from(value.frame?.caption ?? current.definition.defaultCaption).length > COMFORTABLE_CAPTION_LENGTH && (
+              <p role="status" data-testid="qr-frame-caption-long" className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                Long caption: the text shrinks to fit, so it gets small. Around {COMFORTABLE_CAPTION_LENGTH} characters or fewer
+                stays easy to read, especially on a small print.
+              </p>
+            )}
           </div>
 
           <Button type="button" variant="outline" size="sm" onClick={() => choose('none')}>

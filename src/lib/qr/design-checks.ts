@@ -1,5 +1,5 @@
 import { plateColorFor } from './frames/build';
-import { MAX_CAPTION_LENGTH, resolveFrame } from './frames/config';
+import { COMFORTABLE_CAPTION_LENGTH, MAX_CAPTION_LENGTH, resolveFrame } from './frames/config';
 import type { QRDesignConfig } from './generator';
 
 export type IssueSeverity = 'problem' | 'warning';
@@ -161,11 +161,18 @@ export function checkDesign(config: QRDesignConfig): DesignIssue[] {
   const frame = resolveFrame(config.frame);
   if (frame) {
     const rawCaption = typeof config.frame?.caption === 'string' ? config.frame.caption.trim() : '';
-    if (Array.from(rawCaption).length > MAX_CAPTION_LENGTH) {
+    const captionLength = Array.from(rawCaption).length;
+    if (captionLength > MAX_CAPTION_LENGTH) {
       issues.push({
         severity: 'warning',
         text: `The frame caption is longer than ${MAX_CAPTION_LENGTH} characters, so it is cut short.`,
         fix: `Shorten the caption to ${MAX_CAPTION_LENGTH} characters or fewer.`,
+      });
+    } else if (captionLength > COMFORTABLE_CAPTION_LENGTH) {
+      issues.push({
+        severity: 'warning',
+        text: `The frame caption is long (${captionLength} characters), so its text is shrunk to fit and gets small.`,
+        fix: `Keep the caption to about ${COMFORTABLE_CAPTION_LENGTH} characters, or print the code larger so the caption stays readable.`,
       });
     }
 

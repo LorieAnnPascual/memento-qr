@@ -12,7 +12,10 @@ export interface FrameConfig {
   caption?: string;
 }
 
-export const MAX_CAPTION_LENGTH = 24;
+/** The longest caption a frame accepts. The text shrinks to fit its band, so longer captions get smaller. */
+export const MAX_CAPTION_LENGTH = 50;
+/** Up to here the text stays comfortably readable, also on a small print; beyond it people are warned. */
+export const COMFORTABLE_CAPTION_LENGTH = 24;
 
 /** Characters XML 1.0 cannot hold (control characters, lone surrogates, U+FFFE and U+FFFF). */
 const INVALID_XML = new RegExp(
@@ -20,7 +23,7 @@ const INVALID_XML = new RegExp(
   'g',
 );
 
-/** One tidy line of at most 24 characters, safe to place in SVG text. (Escaping for markup happens where it is written.) */
+/** One tidy line of at most 50 characters, safe to place in SVG text. (Escaping for markup happens where it is written.) */
 export function cleanCaption(value: string): string {
   return Array.from(value.replace(INVALID_XML, '').replace(/\s+/g, ' ').trim())
     .slice(0, MAX_CAPTION_LENGTH)
