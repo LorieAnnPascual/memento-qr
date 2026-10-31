@@ -56,6 +56,8 @@ export function describeActivity(entry: DescribableActivity): string {
       return `moved ${plural(detail<number>(entry.details, 'count') ?? 0, 'QR code')} to ${name}`;
     case 'qr.destination_restored':
       return `restored an earlier destination of the QR code ${name}`;
+    case 'qr.version_restored':
+      return `restored an earlier version of the QR code ${name}`;
     case 'qr.health_changed':
       return detail<string>(entry.details, 'status') === 'broken'
         ? `found that ${name} stopped working (${detail<string>(entry.details, 'message') ?? 'needs attention'})`

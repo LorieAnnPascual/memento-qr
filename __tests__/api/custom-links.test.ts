@@ -168,7 +168,8 @@ describe('PUT /api/qr/[id] renaming the link', () => {
     await put({ isDynamic: true, slug: 'old-name', payload: 'https://example.com/menu' });
 
     expect(dbMock.transaction).not.toHaveBeenCalled();
-    expect(writes.inserts).toHaveLength(0);
+    // No alias row (a version-history row may be written).
+    expect(writes.inserts.filter((row) => 'kind' in row)).toHaveLength(0);
   });
 
   it('keeps the current link when no name is sent', async () => {
@@ -179,7 +180,8 @@ describe('PUT /api/qr/[id] renaming the link', () => {
 
     expect(writes.updates[0].shortCode).toBe('old-name'); // unchanged
     expect(dbMock.transaction).not.toHaveBeenCalled();
-    expect(writes.inserts).toHaveLength(0);
+    // No alias row (a version-history row may be written).
+    expect(writes.inserts.filter((row) => 'kind' in row)).toHaveLength(0);
   });
 
   it('lets a code take back a name it used to have', async () => {

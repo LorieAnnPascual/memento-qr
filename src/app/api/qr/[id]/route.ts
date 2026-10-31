@@ -14,6 +14,7 @@ import {
 } from '@/lib/qr/schemas';
 import { playableVideoUrl } from '@/lib/qr/video-player';
 import { buildRedirectUrl, generateShortCode } from '@/lib/qr/short-code';
+import { ensureBaselineVersion, recordVersion } from '@/lib/qr/versions';
 import {
   checkRequestedSlug,
   isUniqueViolation,
@@ -198,6 +199,10 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
       }),
     });
   }
+
+  // Version history: the "original" first (for a code that has none), then what this save made.
+  await ensureBaselineVersion(existing);
+  await recordVersion({ row: updated, previous: existing, changedBy: user.profile.id });
 
   await logActivity({
     userId: user.profile.id,

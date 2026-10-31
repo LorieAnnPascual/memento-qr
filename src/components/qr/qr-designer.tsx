@@ -33,6 +33,7 @@ import { ForwardLinks } from '@/components/slugs/forward-links';
 import { SlugField, type SlugStatus } from '@/components/slugs/slug-field';
 import { normalizeSlug } from '@/lib/slugs/slug';
 import { QRTypeSelector } from './qr-type-selector';
+import { VersionHistoryDialog } from './version-history-dialog';
 import { UrlForm } from './qr-type-forms/url-form';
 import { TextForm } from './qr-type-forms/text-form';
 import { PhoneForm } from './qr-type-forms/phone-form';
@@ -352,6 +353,7 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
           )}
         </div>
         <div className="flex shrink-0 gap-2">
+          {initialQrCode && <VersionHistoryDialog qrId={initialQrCode.id} qrName={initialQrCode.name} />}
           <QRExport
             config={{ data: payload, ...style }}
             fileName={name || 'qr-code'}
