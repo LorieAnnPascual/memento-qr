@@ -9,8 +9,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { QRDesigner } from '@/components/qr/qr-designer';
 
-export default async function EditQRCodePage({ params }: PageProps<'/qr/[id]'>) {
+export default async function EditQRCodePage({ params, searchParams }: PageProps<'/qr/[id]'>) {
   const { id } = await params;
+  // `?version=<id>` (from the Activity page) opens version history on that version.
+  const { version } = await searchParams;
+  const openVersionId = typeof version === 'string' ? version : undefined;
   const user = await getCurrentUser();
 
   if (!user?.profile) {
@@ -45,7 +48,7 @@ export default async function EditQRCodePage({ params }: PageProps<'/qr/[id]'>) 
           </Button>
         )}
       </div>
-      <QRDesigner initialQrCode={qrCode} folders={userFolders} />
+      <QRDesigner initialQrCode={qrCode} folders={userFolders} openVersionId={openVersionId} />
     </div>
   );
 }

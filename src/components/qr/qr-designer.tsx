@@ -112,11 +112,13 @@ interface QRDesignerProps {
   initialStyle?: QRStyleConfig;
   /** The user's folders; the folder picker only appears when there are some. */
   folders?: { id: string; name: string }[];
+  /** Open version history on this version (a link from the Activity page). */
+  openVersionId?: string;
 }
 
 const NO_FOLDER = 'none';
 
-export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesignerProps) {
+export function QRDesigner({ initialQrCode, initialStyle, folders = [], openVersionId }: QRDesignerProps) {
   const router = useRouter();
   const [folderId, setFolderId] = useState(initialQrCode?.folderId ?? NO_FOLDER);
   const [name, setName] = useState(initialQrCode?.name ?? '');
@@ -353,7 +355,9 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
           )}
         </div>
         <div className="flex shrink-0 gap-2">
-          {initialQrCode && <VersionHistoryDialog qrId={initialQrCode.id} qrName={initialQrCode.name} />}
+          {initialQrCode && (
+            <VersionHistoryDialog qrId={initialQrCode.id} qrName={initialQrCode.name} openVersionId={openVersionId} />
+          )}
           <QRExport
             config={{ data: payload, ...style }}
             fileName={name || 'qr-code'}

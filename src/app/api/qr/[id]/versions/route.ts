@@ -3,7 +3,7 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { qrCodes, qrVersions, userProfiles } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
-import type { QrSnapshot } from '@/lib/qr/versions';
+import { snapshotOf, type QrSnapshot } from '@/lib/qr/versions';
 import { displayName } from '@/lib/team/display-name';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -22,7 +22,7 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
   const { id } = await params;
 
   const [qr] = await db
-    .select({ id: qrCodes.id })
+    .select()
     .from(qrCodes)
     .where(and(eq(qrCodes.id, id), isNull(qrCodes.deletedAt)))
     .limit(1);
@@ -46,6 +46,28 @@ export async function GET(_request: Request, { params }: RouteContext): Promise<
     .where(eq(qrVersions.qrCodeId, id))
     .orderBy(desc(qrVersions.createdAt))
     .limit(LIST_LIMIT);
+
+  // A code nobody has saved since version history began has no versions yet. Show how it is now, so the
+  // list is never blank; its first change is recorded together with this starting state.
+  if (rows.length === 0) {
+    const current = snapshotOf(qr);
+    return Response.json({
+      versions: [
+        {
+          id: 'current',
+          number: 1,
+          isCurrent: true,
+          summary: 'How it is now. Changes you save from here on are listed above this.',
+          isRestore: false,
+          createdAt: qr.updatedAt,
+          changedBy: null,
+          name: current.name,
+          qrType: current.qrType,
+          destination: current.targetUrl ?? current.payload,
+        },
+      ],
+    });
+  }
 
   return Response.json({
     versions: rows.map((row, index) => {

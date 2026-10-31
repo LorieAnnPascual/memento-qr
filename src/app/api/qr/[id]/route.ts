@@ -202,7 +202,9 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
 
   // Version history: the "original" first (for a code that has none), then what this save made.
   await ensureBaselineVersion(existing);
-  await recordVersion({ row: updated, previous: existing, changedBy: user.profile.id });
+  const version = await recordVersion({ row: updated, previous: existing, changedBy: user.profile.id });
+  // Lets the Activity page link this entry to the version it made.
+  const versionDetails = version ? { versionId: version.id, changes: version.changes } : {};
 
   await logActivity({
     userId: user.profile.id,
@@ -212,10 +214,12 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
     entityName: updated.name,
     // Pausing/resuming is the one edit worth calling out on its own.
     details: renamedFrom
-      ? { linkRenamedFrom: renamedFrom, linkRenamedTo: payloadUpdate.shortCode }
+      ? { linkRenamedFrom: renamedFrom, linkRenamedTo: payloadUpdate.shortCode, ...versionDetails }
       : data.isPaused !== undefined
-        ? { isPaused: data.isPaused }
-        : undefined,
+        ? { isPaused: data.isPaused, ...versionDetails }
+        : version
+          ? versionDetails
+          : undefined,
     collapseWithinMs: data.isPaused !== undefined || renamedFrom ? undefined : 10 * 60 * 1000,
   });
 
