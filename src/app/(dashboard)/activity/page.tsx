@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/auth/get-current-user';
-import { describeActivity } from '@/lib/activity/describe';
+import { describeActivity, versionLink } from '@/lib/activity/describe';
 import {
   ACTIVITY_FILTERS,
   ACTIVITY_PAGE_SIZE,
@@ -67,10 +67,19 @@ export default async function ActivityPage({ searchParams }: PageProps<'/activit
         <ul className="divide-y rounded-lg border">
           {rows.map((row) => {
             const actor = row.actorName ?? row.actorEmail ?? (row.action === 'qr.health_changed' ? 'Link check' : 'Someone');
+            const versionHref = versionLink(row);
             return (
               <li key={row.id} className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm">
                 <p>
                   <span className="font-medium">{actor}</span> {describeActivity(row)}
+                  {versionHref && (
+                    <>
+                      {' '}
+                      <Link href={versionHref} className="text-primary underline-offset-4 hover:underline">
+                        View this version
+                      </Link>
+                    </>
+                  )}
                 </p>
                 <time
                   dateTime={row.createdAt.toISOString()}

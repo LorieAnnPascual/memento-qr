@@ -67,6 +67,49 @@ export function changedFields(before: QrSnapshot, after: QrSnapshot): string[] {
   return labels;
 }
 
+export interface DiffRow {
+  label: string;
+  /** How it is on the code now. */
+  now: string;
+  /** How it is in the version being looked at. */
+  then: string;
+}
+
+const MAX_SHOWN = 160;
+
+function show(value: unknown): string {
+  if (value === null || value === undefined || value === '') return 'None';
+  const text = Array.isArray(value) ? value.join(', ') : String(value);
+  return text.length > MAX_SHOWN ? `${text.slice(0, MAX_SHOWN)}…` : text;
+}
+
+/**
+ * What would change if a version were used, one row per thing, in words a person can read. Large or
+ * structured things (the design, the form values) are only said to differ.
+ */
+export function diffRows(current: QrSnapshot, version: QrSnapshot): DiffRow[] {
+  const rows: DiffRow[] = [];
+  const differs = (field: keyof QrSnapshot): boolean =>
+    JSON.stringify(current[field] ?? null) !== JSON.stringify(version[field] ?? null);
+  const add = (label: string, now: unknown, then: unknown): void => {
+    rows.push({ label, now: show(now), then: show(then) });
+  };
+
+  if (differs('name')) add('Name', current.name, version.name);
+  if (differs('qrType')) add('Type', current.qrType, version.qrType);
+  if (differs('targetUrl')) add('Destination', current.targetUrl, version.targetUrl);
+  if (differs('payload')) add('Content', current.payload, version.payload);
+  if (differs('payloadFields')) rows.push({ label: 'Content details', now: 'As it is now', then: 'Different' });
+  if (differs('styleConfig')) rows.push({ label: 'Design', now: 'As it is now', then: 'Different' });
+  if (differs('isPaused')) add('Paused', current.isPaused ? 'Yes' : 'No', version.isPaused ? 'Yes' : 'No');
+  if (differs('expiresAt')) add('Expires', current.expiresAt, version.expiresAt);
+  if (differs('scanLimit')) add('Scan limit', current.scanLimit, version.scanLimit);
+  if (differs('tags')) add('Tags', current.tags, version.tags);
+  if (differs('notes')) add('Notes', current.notes, version.notes);
+  if (differs('folderId')) rows.push({ label: 'Folder', now: 'As it is now', then: 'Different' });
+  return rows;
+}
+
 export function describeChange(labels: readonly string[]): string {
   return labels.length > 0 ? `Changed ${labels.join(', ')}` : 'Saved without changes';
 }
@@ -92,6 +135,12 @@ export function restoreValues(snapshot: QrSnapshot, isDynamic: boolean): Partial
   };
 }
 
+export interface RecordedVersion {
+  id: string;
+  /** What changed, as `changedFields` names it (empty for a restore). */
+  changes: string[];
+}
+
 interface RecordInput {
   /** The code as it is now, after the change. */
   row: QRCode;
@@ -106,21 +155,26 @@ interface RecordInput {
  * Remembers what a code looked like after a change. This is bookkeeping: failing to record a version
  * must never fail the edit itself.
  */
-export async function recordVersion(input: RecordInput): Promise<void> {
+export async function recordVersion(input: RecordInput): Promise<RecordedVersion | null> {
   try {
     const after = snapshotOf(input.row);
     const labels = input.previous ? changedFields(snapshotOf(input.previous), after) : [];
-    if (input.previous && labels.length === 0) return;
+    if (input.previous && labels.length === 0) return null;
 
+    // The id is made here (not by the database) so the activity log can point at this version.
+    const id = crypto.randomUUID();
     await db.insert(qrVersions).values({
+      id,
       qrCodeId: input.row.id,
       snapshot: after,
       summary: input.summary ?? describeChange(labels),
       changedBy: input.changedBy,
       restoredFromId: input.restoredFromId ?? null,
     });
+    return { id, changes: labels };
   } catch (error) {
     console.error('QR version error:', error);
+    return null;
   }
 }
 

@@ -53,7 +53,8 @@ export async function logActivity(input: ActivityInput): Promise<void> {
       if (recent) {
         await db
           .update(activityLog)
-          .set({ createdAt: new Date(), entityName: entry.entityName })
+          // `details` follow along so the entry points at the newest of the folded edits (its version).
+          .set({ createdAt: new Date(), entityName: entry.entityName, ...(input.details && { details: input.details }) })
           .where(eq(activityLog.id, recent.id));
         return;
       }

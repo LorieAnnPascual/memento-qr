@@ -10,7 +10,7 @@ const dbMock = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/db', () => ({ db: dbMock }));
 
-import { describeActivity } from '@/lib/activity/describe';
+import { describeActivity, versionLink } from '@/lib/activity/describe';
 import { ACTIVITY_ACTIONS } from '@/lib/activity/actions';
 import { parseActivityFilter } from '@/lib/activity/queries';
 import { formatRelativeTime } from '@/lib/utils/format-relative-time';
@@ -57,6 +57,42 @@ describe('describeActivity', () => {
 
   it('does not throw on an action it has never heard of', () => {
     expect(describeActivity(entry('legacy.thing'))).toBe('legacy thing');
+  });
+});
+
+describe('describeActivity for edits that made a version', () => {
+  it('says what was changed', () => {
+    expect(
+      describeActivity({ action: 'qr.updated', entityName: 'Memorial', details: { versionId: 'v1', changes: ['type', 'destination'] } }),
+    ).toBe('changed the type, destination of the QR code "Memorial"');
+  });
+
+  it('keeps the wording for a pause or a link rename', () => {
+    expect(describeActivity({ action: 'qr.updated', entityName: 'Memorial', details: { isPaused: true, changes: ['pause setting'] } })).toBe(
+      'paused the QR code "Memorial"',
+    );
+  });
+
+  it('still says "edited" for old entries without a change list', () => {
+    expect(describeActivity({ action: 'qr.updated', entityName: 'Memorial', details: null })).toBe('edited the QR code "Memorial"');
+  });
+
+  it('describes a version restore', () => {
+    expect(describeActivity({ action: 'qr.version_restored', entityName: 'Memorial', details: null })).toBe(
+      'restored an earlier version of the QR code "Memorial"',
+    );
+  });
+});
+
+describe('versionLink', () => {
+  it('points at the code\'s edit page on that version', () => {
+    expect(versionLink({ entityId: 'qr-1', details: { versionId: 'abc' } })).toBe('/qr/qr-1?version=abc');
+  });
+
+  it('is null without a version or without a code', () => {
+    expect(versionLink({ entityId: 'qr-1', details: { isPaused: true } })).toBeNull();
+    expect(versionLink({ entityId: 'qr-1', details: null })).toBeNull();
+    expect(versionLink({ entityId: null, details: { versionId: 'abc' } })).toBeNull();
   });
 });
 
@@ -122,6 +158,24 @@ describe('logActivity (real module)', () => {
     ).resolves.toBeUndefined();
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('lets a folded entry follow its newest version', async () => {
+    dbMock.select.mockReturnValue(chainable([{ id: 'existing' }]));
+    const set = vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) }));
+    dbMock.update.mockReturnValue({ set });
+    const { logActivity } = await load();
+
+    await logActivity({
+      userId: 'u1',
+      action: 'qr.updated',
+      entityType: 'qr',
+      entityId: 'q1',
+      details: { versionId: 'newest', changes: ['design'] },
+      collapseWithinMs: 600_000,
+    });
+
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ details: { versionId: 'newest', changes: ['design'] } }));
   });
 
   it('folds a repeat within the window into the existing entry', async () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { changedFields, describeChange, restoreValues, snapshotOf, type QrSnapshot } from '@/lib/qr/versions';
+import { changedFields, describeChange, diffRows, restoreValues, snapshotOf, type QrSnapshot } from '@/lib/qr/versions';
 import type { QRCode } from '@/lib/db/schema';
 
 vi.mock('@/lib/db', () => ({ db: {} }));
@@ -59,6 +59,39 @@ describe('changedFields', () => {
 
   it('treats null and undefined alike', () => {
     expect(changedFields({ ...before, notes: null }, { ...before, notes: undefined as unknown as null })).toEqual([]);
+  });
+});
+
+describe('diffRows', () => {
+  const now = snapshotOf(ROW);
+
+  it('is empty when the version matches how the code is now', () => {
+    expect(diffRows(now, snapshotOf(ROW))).toEqual([]);
+  });
+
+  it('shows plain things as now / then and big things as different', () => {
+    const then: QrSnapshot = {
+      ...now,
+      qrType: 'text',
+      targetUrl: 'https://old.example',
+      styleConfig: { dotColor: '#ff0000' },
+      isPaused: true,
+      tags: ['a', 'b'],
+    };
+
+    const rows = diffRows(now, then);
+
+    expect(rows).toContainEqual({ label: 'Type', now: 'url', then: 'text' });
+    expect(rows).toContainEqual({ label: 'Destination', now: 'https://canva.example/old', then: 'https://old.example' });
+    expect(rows).toContainEqual({ label: 'Design', now: 'As it is now', then: 'Different' });
+    expect(rows).toContainEqual({ label: 'Paused', now: 'No', then: 'Yes' });
+    expect(rows).toContainEqual({ label: 'Tags', now: 'None', then: 'a, b' });
+  });
+
+  it('shortens very long values', () => {
+    const rows = diffRows(now, { ...now, notes: 'x'.repeat(500) });
+    expect(rows[0].then.length).toBeLessThan(200);
+    expect(rows[0].then.endsWith('…')).toBe(true);
   });
 });
 

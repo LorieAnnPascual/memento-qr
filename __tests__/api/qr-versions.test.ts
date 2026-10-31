@@ -61,8 +61,19 @@ describe('GET /api/qr/[id]/versions', () => {
     expect((await call()).status).toBe(404);
   });
 
+  it('shows the current state as version 1 for a code with no recorded versions', async () => {
+    dbMock.select
+      .mockReturnValueOnce(chainable([{ ...QR, qrType: 'url', updatedAt: new Date('2026-10-16') }]))
+      .mockReturnValueOnce(chainable([]));
+
+    const body = await (await call()).json();
+
+    expect(body.versions).toHaveLength(1);
+    expect(body.versions[0]).toMatchObject({ id: 'current', number: 1, isCurrent: true, qrType: 'url' });
+  });
+
   it('numbers the versions oldest = 1 and marks the newest as current', async () => {
-    dbMock.select.mockReturnValueOnce(chainable([{ id: 'qr-1' }])).mockReturnValueOnce(
+    dbMock.select.mockReturnValueOnce(chainable([QR])).mockReturnValueOnce(
       chainable([
         { id: 'v2', snapshot: { ...SNAPSHOT_OLD, qrType: 'video', targetUrl: 'http://x/new.mp4' }, summary: 'Changed type', restoredFromId: null, createdAt: new Date(), fullName: 'Maria Santos', email: 'm@x.co' },
         { id: 'v1', snapshot: SNAPSHOT_OLD, summary: 'Original version', restoredFromId: null, createdAt: new Date(), fullName: null, email: null },
@@ -77,6 +88,66 @@ describe('GET /api/qr/[id]/versions', () => {
     ]);
     expect(body.versions[0]).toMatchObject({ qrType: 'video', destination: 'http://x/new.mp4', changedBy: 'Maria Santos' });
     expect(body.versions[1].changedBy).toBeNull();
+  });
+});
+
+describe('GET /api/qr/[id]/versions/[versionId]', () => {
+  beforeEach(() => {
+    dbMock.select.mockReset();
+    getCurrentUserMock.mockReset();
+    getCurrentUserMock.mockResolvedValue(AUTHED_USER);
+  });
+
+  async function call(versionId = UUID): Promise<Response> {
+    const { GET } = await import('@/app/api/qr/[id]/versions/[versionId]/route');
+    return GET(new Request('http://localhost:3000/x'), { params: Promise.resolve({ id: 'qr-1', versionId }) });
+  }
+
+  const VERSION = { id: UUID, qrCodeId: 'qr-1', snapshot: SNAPSHOT_OLD, summary: 'Original version', createdAt: new Date('2026-02-01') };
+
+  it('requires login', async () => {
+    getCurrentUserMock.mockResolvedValue(null);
+    expect((await call()).status).toBe(401);
+  });
+
+  it('rejects a version id that is not a uuid', async () => {
+    expect((await call('nope')).status).toBe(400);
+  });
+
+  it('404s for a missing code or a version that is not this code\'s', async () => {
+    dbMock.select.mockReturnValueOnce(chainable([]));
+    expect((await call()).status).toBe(404);
+
+    dbMock.select.mockReturnValueOnce(chainable([QR])).mockReturnValueOnce(chainable([]));
+    expect((await (await call()).json()).code).toBe('VERSION_NOT_FOUND');
+  });
+
+  it('compares the version with how the code is now', async () => {
+    dbMock.select.mockReturnValueOnce(chainable([QR])).mockReturnValueOnce(chainable([VERSION]));
+
+    const body = await (await call()).json();
+
+    expect(body.canRestore).toBe(true);
+    expect(body.rows).toContainEqual({ label: 'Type', now: 'video', then: 'url' });
+  });
+
+  it('cannot be used when it matches how the code is now', async () => {
+    dbMock.select
+      .mockReturnValueOnce(chainable([QR]))
+      .mockReturnValueOnce(chainable([{ ...VERSION, snapshot: { ...SNAPSHOT_OLD, qrType: 'video', targetUrl: QR.targetUrl, payloadFields: QR.payloadFields } }]));
+
+    const body = await (await call()).json();
+
+    expect(body.rows).toEqual([]);
+    expect(body.canRestore).toBe(false);
+  });
+
+  it('cannot put a video version on a static code', async () => {
+    dbMock.select
+      .mockReturnValueOnce(chainable([{ ...QR, isDynamic: false, qrType: 'url' }]))
+      .mockReturnValueOnce(chainable([{ ...VERSION, snapshot: { ...SNAPSHOT_OLD, qrType: 'video' } }]));
+
+    expect((await (await call()).json()).canRestore).toBe(false);
   });
 });
 

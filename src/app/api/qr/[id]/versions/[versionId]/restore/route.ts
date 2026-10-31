@@ -88,7 +88,7 @@ export async function POST(_request: Request, { params }: RouteContext): Promise
     .returning();
 
   await ensureBaselineVersion(qr);
-  await recordVersion({
+  const restored = await recordVersion({
     row: updated,
     changedBy: user.profile.id,
     restoredFromId: version.id,
@@ -125,6 +125,7 @@ export async function POST(_request: Request, { params }: RouteContext): Promise
     entityType: 'qr',
     entityId: id,
     entityName: updated.name,
+    details: restored ? { versionId: restored.id } : undefined,
   });
 
   return Response.json(updated);

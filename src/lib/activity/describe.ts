@@ -26,6 +26,16 @@ function describeHandoff(noun: string, name: string, details: unknown): string {
   return `updated the handoff notes or checklist on ${noun} ${name}`;
 }
 
+/**
+ * Where an activity entry's version can be looked at: the code's edit page, opened on that version.
+ * Null for entries that did not make a version.
+ */
+export function versionLink(entry: { entityId: string | null; details: unknown }): string | null {
+  const versionId = detail<unknown>(entry.details, 'versionId');
+  if (!entry.entityId || typeof versionId !== 'string') return null;
+  return `/qr/${entry.entityId}?version=${encodeURIComponent(versionId)}`;
+}
+
 /** A short, human sentence fragment for an activity entry, e.g. `created the QR code "Menu"`. */
 export function describeActivity(entry: DescribableActivity): string {
   const name = quoted(entry.entityName);
@@ -44,6 +54,10 @@ export function describeActivity(entry: DescribableActivity): string {
       const paused = detail<boolean>(entry.details, 'isPaused');
       if (paused === true) return `paused the QR code ${name}`;
       if (paused === false) return `resumed the QR code ${name}`;
+      const changes = detail<unknown>(entry.details, 'changes');
+      if (Array.isArray(changes) && changes.length > 0) {
+        return `changed the ${changes.filter((item): item is string => typeof item === 'string').join(', ')} of the QR code ${name}`;
+      }
       return `edited the QR code ${name}`;
     }
     case 'qr.deleted':
