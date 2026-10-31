@@ -106,7 +106,10 @@ describe('POST /api/qr/[id]/restore', () => {
   });
 
   it('refuses to "restore" the destination that is already current', async () => {
-    dbMock.select.mockReturnValueOnce(chainable([QR])).mockReturnValueOnce(chainable([{ ...ENTRY, destination: QR.targetUrl }]));
+    dbMock.select
+      .mockReturnValueOnce(chainable([QR]))
+      .mockReturnValueOnce(chainable([{ ...ENTRY, destination: QR.targetUrl, qrType: null, createdAt: new Date() }]))
+      .mockReturnValueOnce(chainable([]));
     const response = await call({ historyId: UUID });
 
     expect(response.status).toBe(409);
@@ -114,8 +117,55 @@ describe('POST /api/qr/[id]/restore', () => {
     expect(dbMock.update).not.toHaveBeenCalled();
   });
 
+  it('brings back the type and form values the entry recorded', async () => {
+    const entry = { ...ENTRY, qrType: 'url', payloadFields: { url: 'https://old.example' } };
+    dbMock.select.mockReturnValueOnce(chainable([{ ...QR, qrType: 'video' }])).mockReturnValueOnce(chainable([entry]));
+    dbMock.insert.mockReturnValue(chainable([]));
+    const state = stubUpdate();
+
+    expect((await call({ historyId: UUID })).status).toBe(200);
+    expect(state.captured()).toMatchObject({ qrType: 'url', payloadFields: { url: 'https://old.example' } });
+  });
+
+  it('takes the type from the next type change when the entry recorded none', async () => {
+    const next = { previousQrType: 'url', previousPayloadFields: { url: 'https://old.example' } };
+    dbMock.select
+      .mockReturnValueOnce(chainable([{ ...QR, qrType: 'video' }]))
+      .mockReturnValueOnce(chainable([{ ...ENTRY, qrType: null, createdAt: new Date() }]))
+      .mockReturnValueOnce(chainable([next]));
+    dbMock.insert.mockReturnValue(chainable([]));
+    const state = stubUpdate();
+
+    expect((await call({ historyId: UUID })).status).toBe(200);
+    expect(state.captured()).toMatchObject({ qrType: 'url', payloadFields: next.previousPayloadFields });
+  });
+
+  it('turns a video back into a url code when nothing says what the old type was', async () => {
+    dbMock.select
+      .mockReturnValueOnce(chainable([{ ...QR, qrType: 'video' }]))
+      .mockReturnValueOnce(chainable([{ ...ENTRY, qrType: null, createdAt: new Date() }]))
+      .mockReturnValueOnce(chainable([]));
+    dbMock.insert.mockReturnValue(chainable([]));
+    const state = stubUpdate();
+
+    expect((await call({ historyId: UUID })).status).toBe(200);
+    expect(state.captured()).toMatchObject({ qrType: 'url', targetUrl: 'https://old.example' });
+  });
+
+  it('allows restoring just the type when the destination is already the same', async () => {
+    const entry = { ...ENTRY, destination: QR.targetUrl, qrType: 'url' };
+    dbMock.select.mockReturnValueOnce(chainable([{ ...QR, qrType: 'video' }])).mockReturnValueOnce(chainable([entry]));
+    dbMock.insert.mockReturnValue(chainable([]));
+    stubUpdate();
+
+    expect((await call({ historyId: UUID })).status).toBe(200);
+  });
+
   it('restores the destination, clears the stale health result, and records who did it', async () => {
-    dbMock.select.mockReturnValueOnce(chainable([QR])).mockReturnValueOnce(chainable([ENTRY]));
+    dbMock.select
+      .mockReturnValueOnce(chainable([QR]))
+      .mockReturnValueOnce(chainable([{ ...ENTRY, qrType: null, createdAt: new Date() }]))
+      .mockReturnValueOnce(chainable([]));
     dbMock.insert.mockReturnValue(chainable([]));
     const state = stubUpdate();
 

@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, gt, isNotNull, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@/lib/db';
@@ -6,6 +6,7 @@ import { qrCodes, qrDestinationHistory } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { logActivity } from '@/lib/activity/log-activity';
 import { recordDestinationChange } from '@/lib/qr/destination-history';
+import { playableVideoUrl } from '@/lib/qr/video-player';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -53,7 +54,35 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
     return Response.json({ error: 'History entry not found', code: 'HISTORY_NOT_FOUND' }, { status: 404 });
   }
 
-  if (entry.destination === qr.targetUrl) {
+  // The type (and form values) the code had when this entry was current: the entry's own if it
+  // recorded one, else what the next type change started from, else unknown (left as it is).
+  let restoredType: string | null = entry.qrType ?? null;
+  let restoredFields: unknown = entry.payloadFields;
+  if (restoredType === null) {
+    const [nextTypeChange] = await db
+      .select()
+      .from(qrDestinationHistory)
+      .where(
+        and(
+          eq(qrDestinationHistory.qrCodeId, id),
+          gt(qrDestinationHistory.createdAt, entry.createdAt),
+          isNotNull(qrDestinationHistory.previousQrType),
+        ),
+      )
+      .orderBy(asc(qrDestinationHistory.createdAt))
+      .limit(1);
+    if (nextTypeChange?.previousQrType) {
+      restoredType = nextTypeChange.previousQrType;
+      restoredFields = nextTypeChange.previousPayloadFields;
+    }
+  }
+  // Still unknown while the code is a video: a destination that is not a hosted video cannot be played.
+  if (restoredType === null && qr.qrType === 'video' && !playableVideoUrl(entry.destination)) {
+    restoredType = 'url';
+  }
+  const typeWillChange =restoredType !== null && restoredType !== qr.qrType;
+
+  if (entry.destination === qr.targetUrl && !typeWillChange) {
     return Response.json(
       { error: 'That is already the current destination', code: 'ALREADY_CURRENT' },
       { status: 409 },
@@ -64,6 +93,8 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
     .update(qrCodes)
     .set({
       targetUrl: entry.destination,
+      ...(typeWillChange && { qrType: restoredType! }),
+      ...(typeWillChange && restoredFields != null && { payloadFields: restoredFields }),
       updatedAt: new Date(),
       updatedBy: user.profile.id,
       // The old problem no longer applies; the next check will say what is true now.
@@ -80,6 +111,12 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
     previousDestination: qr.targetUrl,
     changedBy: user.profile.id,
     restoredFromId: entry.id,
+    ...(typeWillChange && {
+      qrType: restoredType,
+      previousQrType: qr.qrType,
+      payloadFields: restoredFields ?? qr.payloadFields,
+      previousPayloadFields: qr.payloadFields,
+    }),
   });
 
   await logActivity({
@@ -88,7 +125,11 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
     entityType: 'qr',
     entityId: id,
     entityName: updated.name,
-    details: { from: qr.targetUrl, to: entry.destination },
+    details: {
+      from: qr.targetUrl,
+      to: entry.destination,
+      ...(typeWillChange && { typeFrom: qr.qrType, typeTo: restoredType }),
+    },
   });
 
   return Response.json({ targetUrl: updated.targetUrl });
