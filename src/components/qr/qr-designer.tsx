@@ -32,6 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ForwardLinks } from '@/components/slugs/forward-links';
 import { SlugField, type SlugStatus } from '@/components/slugs/slug-field';
 import { normalizeSlug } from '@/lib/slugs/slug';
+import { PrintedCopyCheckDialog } from './printed-copy-check-dialog';
 import { QRTypeSelector } from './qr-type-selector';
 import { VersionHistoryDialog } from './version-history-dialog';
 import { UrlForm } from './qr-type-forms/url-form';
@@ -355,6 +356,7 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [], openVers
           )}
         </div>
         <div className="flex shrink-0 gap-2">
+          {initialQrCode && <PrintedCopyCheckDialog expectedPayload={payload} isDynamic={isDynamic} />}
           {initialQrCode && (
             <VersionHistoryDialog qrId={initialQrCode.id} qrName={initialQrCode.name} openVersionId={openVersionId} />
           )}
