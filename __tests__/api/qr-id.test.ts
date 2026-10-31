@@ -318,10 +318,11 @@ describe('PUT /api/qr/[id] changing the type of a saved code', () => {
         return chainable([{ id: 'qr-1', ...v }]);
       },
     });
-    let history: Record<string, unknown> = {};
+    // The destination-history entry (the one that names the old type) and the version entry both get written.
+    const inserts: Record<string, unknown>[] = [];
     dbMock.insert.mockReturnValue({
       values: (v: Record<string, unknown>) => {
-        history = v;
+        inserts.push(v);
         return Promise.resolve();
       },
     });
@@ -337,7 +338,12 @@ describe('PUT /api/qr/[id] changing the type of a saved code', () => {
     expect(capturedSet.shortCode).toBe('abc123');
     expect(capturedSet.payload).toBe('http://localhost:3000/q/abc123');
     expect(capturedSet.targetUrl).toBe(videoBody.payload);
-    expect(history).toMatchObject({ qrType: 'video', previousQrType: 'url', previousPayloadFields: existingDynamicUrl.payloadFields });
+    expect(inserts.find((v) => 'previousQrType' in v)).toMatchObject({
+      qrType: 'video',
+      previousQrType: 'url',
+      previousPayloadFields: existingDynamicUrl.payloadFields,
+    });
+    expect(inserts.find((v) => 'summary' in v)).toMatchObject({ summary: 'Changed type, destination, content' });
   });
 
   it('lets a video code be switched back to another type', async () => {
@@ -382,9 +388,10 @@ describe('PUT /api/qr/[id] changing the type of a saved code', () => {
 
     await PUT(new NextRequest('http://localhost:3000/api/qr/qr-1', { method: 'PUT', body: JSON.stringify(videoBody) }), { params });
 
-    expect(inserted).toHaveLength(2);
-    expect(inserted[0]).toMatchObject({ destination: 'https://canva.example/old', qrType: 'url', changedBy: null });
-    expect(inserted[1]).toMatchObject({ qrType: 'video', previousQrType: 'url' });
+    const history = inserted.filter((v) => 'destination' in v);
+    expect(history).toHaveLength(2);
+    expect(history[0]).toMatchObject({ destination: 'https://canva.example/old', qrType: 'url', changedBy: null });
+    expect(history[1]).toMatchObject({ qrType: 'video', previousQrType: 'url' });
   });
 
   it('refuses to turn a static code into a video (STATIC_CANNOT_CHANGE_TYPE) and writes nothing', async () => {

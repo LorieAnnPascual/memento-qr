@@ -57,6 +57,13 @@
       "when": 1793406545122,
       "tag": "0007_fantastic_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793412443765,
+      "tag": "0008_big_rafael_vega",
+      "breakpoints": true
     }
   ]
 }

@@ -179,8 +179,8 @@ describe('POST /api/qr/[id]/restore', () => {
       healthMessage: null,
       healthCheckedAt: null,
     });
-    // The restore is itself written into the history and the activity log.
-    expect(dbMock.insert).toHaveBeenCalledTimes(1);
+    // The restore is itself written into the destination history, the version history and the activity log.
+    expect(dbMock.insert).toHaveBeenCalledTimes(2);
     expect(logActivityMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'qr.destination_restored', details: { from: 'https://new.example', to: 'https://old.example' } }),
     );

@@ -6,6 +6,7 @@ import { qrCodes, qrDestinationHistory } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { logActivity } from '@/lib/activity/log-activity';
 import { recordDestinationChange } from '@/lib/qr/destination-history';
+import { ensureBaselineVersion, recordVersion } from '@/lib/qr/versions';
 import { playableVideoUrl } from '@/lib/qr/video-player';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -118,6 +119,9 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
       previousPayloadFields: qr.payloadFields,
     }),
   });
+
+  await ensureBaselineVersion(qr);
+  await recordVersion({ row: updated, previous: qr, changedBy: user.profile.id, summary: 'Restored an earlier destination' });
 
   await logActivity({
     userId: user.profile.id,

@@ -154,6 +154,25 @@ export const qrDestinationHistory = pgTable(
 );
 
 // ============================================================
+// VERSION HISTORY (a full snapshot of a QR code after every change; see src/lib/qr/versions.ts)
+// ============================================================
+export const qrVersions = pgTable(
+  'qr_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    qrCodeId: uuid('qr_code_id')
+      .notNull()
+      .references(() => qrCodes.id, { onDelete: 'cascade' }),
+    snapshot: jsonb('snapshot').notNull(), // QrSnapshot
+    summary: text('summary').notNull(), // what changed, in words
+    changedBy: uuid('changed_by').references(() => userProfiles.id, { onDelete: 'set null' }),
+    restoredFromId: uuid('restored_from_id'), // set when this version came from a restore
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('idx_qr_versions_qr_created').on(table.qrCodeId, table.createdAt)],
+);
+
+// ============================================================
 // LANDING PAGE TEMPLATES
 // ============================================================
 export const pageTemplates = pgTable(
