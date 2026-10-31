@@ -143,6 +143,11 @@ export const qrDestinationHistory = pgTable(
     previousDestination: text('previous_destination'), // null for the first entry
     changedBy: uuid('changed_by').references(() => userProfiles.id, { onDelete: 'set null' }),
     restoredFromId: uuid('restored_from_id'), // set when this entry was a restore
+    // Type changes (null on entries written before type was recorded).
+    qrType: text('qr_type'), // the type that became current
+    previousQrType: text('previous_qr_type'),
+    payloadFields: jsonb('payload_fields'), // the form values that became current
+    previousPayloadFields: jsonb('previous_payload_fields'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index('idx_qr_dest_history_qr_created').on(table.qrCodeId, table.createdAt)],

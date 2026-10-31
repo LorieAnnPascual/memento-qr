@@ -19,6 +19,18 @@ export function VIDEO_MUST_BE_DYNAMIC_RESPONSE(): Response {
 }
 
 /** A video code's target must be a video from our own Media library, checked when it is saved. */
+/** A printed static code encodes its content itself, so turning it into a video would change the picture. */
+export function STATIC_CANNOT_BECOME_VIDEO_RESPONSE(): Response {
+  return Response.json(
+    {
+      error:
+        'This code is static, so its picture holds the content itself and would change. Create a new video QR code instead.',
+      code: 'STATIC_CANNOT_CHANGE_TYPE',
+    },
+    { status: 400 },
+  );
+}
+
 export function INVALID_VIDEO_RESPONSE(): Response {
   return Response.json(
     { error: 'Choose a video from your Media library or upload one.', code: 'INVALID_VIDEO' },

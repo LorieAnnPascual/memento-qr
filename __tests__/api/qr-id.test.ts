@@ -281,6 +281,129 @@ describe('PUT /api/qr/[id] for a video code', () => {
   });
 });
 
+describe('PUT /api/qr/[id] changing the type of a saved code', () => {
+  const existingDynamicUrl = {
+    id: 'qr-1',
+    qrType: 'url',
+    isDynamic: true,
+    shortCode: 'abc123',
+    targetUrl: 'https://canva.example/old',
+    payload: 'http://localhost:3000/q/abc123',
+    payloadFields: { url: 'https://canva.example/old' },
+  };
+  const videoBody = {
+    qrType: 'video',
+    payload: 'http://localhost:3000/media/p/new.mp4',
+    payloadFields: { videoUrl: 'http://localhost:3000/media/p/new.mp4', fileName: 'new.mp4', fileSize: 10 },
+  };
+
+  beforeEach(() => {
+    dbMock.select.mockReset();
+    dbMock.update.mockReset();
+    dbMock.insert.mockReset();
+    getCurrentUserMock.mockReset();
+    getCurrentUserMock.mockResolvedValue(AUTHED_USER);
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000');
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('stores the new type on a dynamic code and keeps its link and picture', async () => {
+    dbMock.select.mockReturnValue(chainable([existingDynamicUrl]));
+    let capturedSet: Record<string, unknown> = {};
+    dbMock.update.mockReturnValue({
+      set: (v: Record<string, unknown>) => {
+        capturedSet = v;
+        return chainable([{ id: 'qr-1', ...v }]);
+      },
+    });
+    let history: Record<string, unknown> = {};
+    dbMock.insert.mockReturnValue({
+      values: (v: Record<string, unknown>) => {
+        history = v;
+        return Promise.resolve();
+      },
+    });
+    const { PUT } = await import('@/app/api/qr/[id]/route');
+
+    const response = await PUT(
+      new NextRequest('http://localhost:3000/api/qr/qr-1', { method: 'PUT', body: JSON.stringify(videoBody) }),
+      { params },
+    );
+
+    expect(response.status).toBe(200);
+    expect(capturedSet.qrType).toBe('video');
+    expect(capturedSet.shortCode).toBe('abc123');
+    expect(capturedSet.payload).toBe('http://localhost:3000/q/abc123');
+    expect(capturedSet.targetUrl).toBe(videoBody.payload);
+    expect(history).toMatchObject({ qrType: 'video', previousQrType: 'url', previousPayloadFields: existingDynamicUrl.payloadFields });
+  });
+
+  it('lets a video code be switched back to another type', async () => {
+    dbMock.select.mockReturnValue(chainable([{ ...existingDynamicUrl, qrType: 'video' }]));
+    let capturedSet: Record<string, unknown> = {};
+    dbMock.update.mockReturnValue({
+      set: (v: Record<string, unknown>) => {
+        capturedSet = v;
+        return chainable([{ id: 'qr-1', ...v }]);
+      },
+    });
+    dbMock.insert.mockReturnValue({ values: () => Promise.resolve() });
+    const { PUT } = await import('@/app/api/qr/[id]/route');
+
+    const response = await PUT(
+      new NextRequest('http://localhost:3000/api/qr/qr-1', {
+        method: 'PUT',
+        body: JSON.stringify({ qrType: 'url', payload: 'https://canva.example/old', payloadFields: { url: 'https://canva.example/old' } }),
+      }),
+      { params },
+    );
+
+    expect(response.status).toBe(200);
+    expect(capturedSet.qrType).toBe('url');
+    expect(capturedSet.shortCode).toBe('abc123');
+  });
+
+  it('writes the "how it was" entry first for a code that has no history yet', async () => {
+    // First select = the code, second = its (empty) history.
+    dbMock.select
+      .mockReturnValueOnce(chainable([{ ...existingDynamicUrl, createdAt: new Date('2026-01-01') }]))
+      .mockReturnValueOnce(chainable([]));
+    dbMock.update.mockReturnValue({ set: (v: Record<string, unknown>) => chainable([{ id: 'qr-1', ...v }]) });
+    const inserted: Record<string, unknown>[] = [];
+    dbMock.insert.mockReturnValue({
+      values: (v: Record<string, unknown>) => {
+        inserted.push(v);
+        return Promise.resolve();
+      },
+    });
+    const { PUT } = await import('@/app/api/qr/[id]/route');
+
+    await PUT(new NextRequest('http://localhost:3000/api/qr/qr-1', { method: 'PUT', body: JSON.stringify(videoBody) }), { params });
+
+    expect(inserted).toHaveLength(2);
+    expect(inserted[0]).toMatchObject({ destination: 'https://canva.example/old', qrType: 'url', changedBy: null });
+    expect(inserted[1]).toMatchObject({ qrType: 'video', previousQrType: 'url' });
+  });
+
+  it('refuses to turn a static code into a video (STATIC_CANNOT_CHANGE_TYPE) and writes nothing', async () => {
+    dbMock.select.mockReturnValue(
+      chainable([{ ...existingDynamicUrl, isDynamic: false, shortCode: null, targetUrl: null, payload: 'https://canva.example/old' }]),
+    );
+    const { PUT } = await import('@/app/api/qr/[id]/route');
+
+    const response = await PUT(
+      new NextRequest('http://localhost:3000/api/qr/qr-1', { method: 'PUT', body: JSON.stringify(videoBody) }),
+      { params },
+    );
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe('STATIC_CANNOT_CHANGE_TYPE');
+    expect(dbMock.update).not.toHaveBeenCalled();
+  });
+});
+
 describe('DELETE /api/qr/[id]', () => {
   beforeEach(() => {
     dbMock.select.mockReset();

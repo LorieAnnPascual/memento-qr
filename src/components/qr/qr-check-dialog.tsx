@@ -27,6 +27,8 @@ interface HistoryEntry {
   destination: string;
   previousDestination: string | null;
   isRestore: boolean;
+  qrType: string | null;
+  previousQrType: string | null;
   createdAt: string;
   changedBy: string | null;
 }
@@ -247,8 +249,9 @@ export function QrCheckDialog({ qr, onOpenChange, onRestored }: QrCheckDialogPro
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {history.entries.map((entry) => {
-                    const isCurrent = entry.destination === history.current;
+                  {history.entries.map((entry, index) => {
+                    // Every change (and restore) adds an entry, so the newest one is the current state.
+                    const isCurrent = index === 0 && entry.destination === history.current;
                     return (
                       <li key={entry.id} className="rounded-md border p-2 text-sm">
                         <p className="break-all font-medium">{entry.destination}</p>
@@ -256,6 +259,11 @@ export function QrCheckDialog({ qr, onOpenChange, onRestored }: QrCheckDialogPro
                           {entry.isRestore ? 'Restored' : entry.previousDestination ? 'Changed' : 'Set'} by {entry.changedBy ?? 'a teammate'} on{' '}
                           {new Date(entry.createdAt).toLocaleString()}
                         </p>
+                        {entry.qrType && entry.previousQrType && (
+                          <p className="text-muted-foreground">
+                            Type changed from {entry.previousQrType} to {entry.qrType}. The printed code does not change.
+                          </p>
+                        )}
                         <div className="mt-1 flex items-center gap-2">
                           {isCurrent ? (
                             <span className="text-xs font-medium text-green-700 dark:text-green-400">Current</span>

@@ -5,8 +5,13 @@ import { qrCodes } from '@/lib/db/schema';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { logActivity } from '@/lib/activity/log-activity';
 import { getOwnedFolder } from '@/lib/folders/get-owned-folder';
-import { destinationChanged, recordDestinationChange } from '@/lib/qr/destination-history';
-import { INVALID_VIDEO_RESPONSE, UpdateQRSchema, VIDEO_MUST_BE_DYNAMIC_RESPONSE } from '@/lib/qr/schemas';
+import { destinationChanged, ensureBaselineEntry, recordDestinationChange, typeChanged } from '@/lib/qr/destination-history';
+import {
+  INVALID_VIDEO_RESPONSE,
+  STATIC_CANNOT_BECOME_VIDEO_RESPONSE,
+  UpdateQRSchema,
+  VIDEO_MUST_BE_DYNAMIC_RESPONSE,
+} from '@/lib/qr/schemas';
 import { playableVideoUrl } from '@/lib/qr/video-player';
 import { buildRedirectUrl, generateShortCode } from '@/lib/qr/short-code';
 import {
@@ -77,8 +82,13 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
   }
 
   // A video code is always dynamic, also when it is edited.
-  const isVideo = existing.qrType === 'video' || data.qrType === 'video';
+  // (judged by the type the code will have after this save, so a video can be switched to another type)
+  const isVideo = (data.qrType ?? existing.qrType) === 'video';
   if (isVideo && data.isDynamic === false) return VIDEO_MUST_BE_DYNAMIC_RESPONSE();
+  // A static code cannot become a video without a new link, which changes the printed picture.
+  if (!existing.isDynamic && existing.qrType !== 'video' && data.qrType === 'video') {
+    return STATIC_CANNOT_BECOME_VIDEO_RESPONSE();
+  }
   // A new video must be one of our own hosted videos (a rename or pause sends no video).
   const newVideoTarget = data.targetUrl ?? data.payload;
   if (isVideo && newVideoTarget !== undefined && !playableVideoUrl(newVideoTarget)) return INVALID_VIDEO_RESPONSE();
@@ -120,8 +130,14 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
       ? existing.shortCode
       : null;
 
+  // Always stored with the form values it goes with (`/q/<name>` also reads it to pick redirect or player).
+  const newType = typeChanged(existing.qrType, data.qrType) ? data.qrType : null;
+  // Only dynamic codes keep a history of it (a static code's picture holds the content itself).
+  const recordTypeChange = newType !== null && effectiveIsDynamic;
+
   const values = {
     ...(data.name !== undefined && { name: data.name }),
+    ...(newType !== null && { qrType: newType }),
     ...payloadUpdate,
     ...((data.isDynamic !== undefined || isVideo) && { isDynamic: effectiveIsDynamic }),
     ...(data.payloadFields !== undefined && { payloadFields: data.payloadFields }),
@@ -160,12 +176,26 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<R
     throw error;
   }
 
-  if (destinationChanged(existing.targetUrl, payloadUpdate.targetUrl)) {
+  if (destinationChanged(existing.targetUrl, payloadUpdate.targetUrl) || recordTypeChange) {
+    // A code from before history existed has no entry for how it was, so there would be nothing to restore.
+    await ensureBaselineEntry({
+      qrCodeId: id,
+      destination: existing.targetUrl,
+      qrType: existing.qrType,
+      payloadFields: existing.payloadFields,
+      createdAt: existing.createdAt,
+    });
     await recordDestinationChange({
       qrCodeId: id,
-      destination: payloadUpdate.targetUrl,
+      destination: payloadUpdate.targetUrl ?? existing.targetUrl ?? existing.payload,
       previousDestination: existing.targetUrl,
       changedBy: user.profile.id,
+      ...(recordTypeChange && {
+        qrType: newType,
+        previousQrType: existing.qrType,
+        payloadFields: data.payloadFields ?? existing.payloadFields,
+        previousPayloadFields: existing.payloadFields,
+      }),
     });
   }
 

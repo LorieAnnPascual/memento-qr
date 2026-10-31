@@ -7,9 +7,12 @@ import { getQRTypeIcon } from './qr-type-icon';
 interface QRTypeSelectorProps {
   value: QRType;
   onChange: (type: QRType) => void;
+  /** Types that cannot be chosen right now (shown greyed out, with `disabledReason` as the tooltip). */
+  disabledTypes?: readonly QRType[];
+  disabledReason?: string;
 }
 
-export function QRTypeSelector({ value, onChange }: QRTypeSelectorProps) {
+export function QRTypeSelector({ value, onChange, disabledTypes = [], disabledReason }: QRTypeSelectorProps) {
   return (
     <div
       role="radiogroup"
@@ -21,6 +24,7 @@ export function QRTypeSelector({ value, onChange }: QRTypeSelectorProps) {
         const isActive = type === value;
         const label = getQRTypeLabel(type);
         const description = getQRTypeDescription(type);
+        const isDisabled = disabledTypes.includes(type) && !isActive;
 
         return (
           <button
@@ -29,11 +33,13 @@ export function QRTypeSelector({ value, onChange }: QRTypeSelectorProps) {
             role="radio"
             aria-checked={isActive}
             aria-label={`${label}: ${description}`}
-            title={description}
+            title={isDisabled && disabledReason ? disabledReason : description}
+            disabled={isDisabled}
             data-testid={`qr-type-${type}`}
             onClick={() => onChange(type)}
             className={cn(
               'flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-xs font-medium transition-colors',
+              isDisabled && 'cursor-not-allowed opacity-50',
               isActive
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-input text-muted-foreground hover:bg-muted hover:text-foreground',

@@ -141,6 +141,12 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
   const [dynamicChoice, setDynamicChoice] = useState(initialQrCode?.isDynamic ?? false);
   // A video code can only ever be dynamic, so the video can be replaced without reprinting.
   const isDynamic = dynamicChoice || type === 'video';
+  // A saved static code holds its content in the picture; it cannot turn into a video without a new picture.
+  const savedStatic = Boolean(initialQrCode && !initialQrCode.isDynamic && initialQrCode.qrType !== 'video');
+  const typeChangeNote =
+    initialQrCode && initialQrCode.isDynamic && type !== initialQrCode.qrType
+      ? ` The type changes from ${initialQrCode.qrType} to ${type}. The printed QR picture and its link stay the same, only what people see when they scan changes. You can undo this from the code's check dialog (destination history).`
+      : '';
   const [isPaused, setIsPaused] = useState(initialQrCode?.isPaused ?? false);
   const [expiresAt, setExpiresAt] = useState(() => toDateTimeLocalValue(initialQrCode?.expiresAt ?? null));
   const [scanLimit, setScanLimit] = useState(initialQrCode?.scanLimit?.toString() ?? '');
@@ -358,7 +364,12 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
         </div>
       </div>
 
-      <QRTypeSelector value={type} onChange={setType} />
+      <QRTypeSelector
+        value={type}
+        onChange={setType}
+        disabledTypes={savedStatic ? ['video'] : []}
+        disabledReason="This code is static, so its picture would change. Create a new video QR code instead."
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Tabs (kept mounted, just hidden) so the preview stays in view while editing. */}
@@ -552,6 +563,7 @@ export function QRDesigner({ initialQrCode, initialStyle, folders = [] }: QRDesi
             : initialQrCode
               ? 'This will overwrite the saved version with your current changes.'
               : `"${name}" will be added to your QR codes.`) +
+          typeChangeNote +
           (isDynamic && chosenSlug && slugStatus === 'reclaim'
             ? ` /q/${chosenSlug} belonged to a deleted QR code, so anyone who scans that old printed code will now reach this one.`
             : '')
